@@ -1,14 +1,14 @@
 package com.mycompany.autotech_manager;
 
 import conexion.ConexionDB;
+import vista.FrmMenuPrincipal;
 
-/**
- * Punto de entrada de AutoTech Manager.
- * Por ahora solo prueba la conexión; luego abrirá el formulario principal.
- */
+import javax.swing.SwingUtilities;
+
 public class AutoTech_Manager {
 
     public static void main(String[] args) {
         ConexionDB.probarConexion();
+        SwingUtilities.invokeLater(() -> new FrmMenuPrincipal().setVisible(true));
     }
 }
