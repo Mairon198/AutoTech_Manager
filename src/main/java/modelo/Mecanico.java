@@ -4,20 +4,34 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Personal técnico del taller. Puede tener varias especialidades. */
 public class Mecanico extends Persona {
 
     private String codigoEmpleado;
+    private String nivelCertificacion = "SENIOR";
     private BigDecimal tarifaHora = BigDecimal.ZERO;
     private boolean disponible = true;
     private List<Especialidad> especialidades = new ArrayList<>();
+
+    public Mecanico() {
+    }
+
+    public Mecanico(String codigoEmpleado, String identidad, String nombre, String apellido,
+                    String telefono, String correo, String nivelCertificacion, BigDecimal tarifaHora) {
+        this.codigoEmpleado = codigoEmpleado;
+        this.identidad = identidad;
+        this.nombre = nombre;
+        this.apellido = apellido;
+        this.telefono = telefono;
+        this.correo = correo;
+        this.nivelCertificacion = (nivelCertificacion != null && !nivelCertificacion.isBlank()) ? nivelCertificacion : "SENIOR";
+        this.tarifaHora = tarifaHora != null ? tarifaHora : BigDecimal.ZERO;
+    }
 
     @Override
     public String getTipoPersona() {
         return "Mecánico";
     }
 
-    /** Solo se puede asignar a una orden si está activo y disponible. */
     public boolean puedeSerAsignado() {
         return activo && disponible;
     }
@@ -37,6 +51,14 @@ public class Mecanico extends Persona {
 
     public void setCodigoEmpleado(String codigoEmpleado) {
         this.codigoEmpleado = codigoEmpleado;
+    }
+
+    public String getNivelCertificacion() {
+        return nivelCertificacion;
+    }
+
+    public void setNivelCertificacion(String nivelCertificacion) {
+        this.nivelCertificacion = nivelCertificacion;
     }
 
     public BigDecimal getTarifaHora() {

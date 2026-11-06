@@ -3,7 +3,6 @@ package modelo;
 import modelo.enums.CategoriaRepuesto;
 import java.math.BigDecimal;
 
-/** Artículo del inventario (aceites, filtros, baterías, transmisiones, etc.). */
 public class Repuesto extends EntidadBase {
 
     private String codigo;
@@ -11,12 +10,28 @@ public class Repuesto extends EntidadBase {
     private CategoriaRepuesto categoria;
     private String marca;
     private int stock;
-    private int stockMinimo;
+    private int stockMinimo = 2;
     private BigDecimal costoUnitario = BigDecimal.ZERO;
     private BigDecimal precioVenta = BigDecimal.ZERO;
+    private String ubicacion;
     private Proveedor proveedor;
 
     public Repuesto() {
+    }
+
+    public Repuesto(String codigo, String nombre, CategoriaRepuesto categoria, String marca,
+                    int stock, int stockMinimo, BigDecimal costoUnitario, BigDecimal precioVenta,
+                    String ubicacion, Proveedor proveedor) {
+        this.codigo = codigo;
+        this.nombre = nombre;
+        this.categoria = categoria;
+        this.marca = marca;
+        this.stock = stock;
+        this.stockMinimo = stockMinimo;
+        this.costoUnitario = costoUnitario != null ? costoUnitario : BigDecimal.ZERO;
+        this.precioVenta = precioVenta != null ? precioVenta : BigDecimal.ZERO;
+        this.ubicacion = ubicacion;
+        this.proveedor = proveedor;
     }
 
     public boolean hayStock(int cantidad) {
@@ -94,6 +109,14 @@ public class Repuesto extends EntidadBase {
 
     public void setPrecioVenta(BigDecimal precioVenta) {
         this.precioVenta = precioVenta;
+    }
+
+    public String getUbicacion() {
+        return ubicacion;
+    }
+
+    public void setUbicacion(String ubicacion) {
+        this.ubicacion = ubicacion;
     }
 
     public Proveedor getProveedor() {

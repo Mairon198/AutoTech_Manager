@@ -4,19 +4,35 @@ import modelo.enums.TipoMovimiento;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** Entrada, salida o ajuste de un repuesto. Toda salida por orden queda ligada a ella. */
 public class MovimientoInventario extends EntidadBase {
 
     private Repuesto repuesto;
     private TipoMovimiento tipo;
     private int cantidad;
+    private int stockAnterior;
+    private int stockResultante;
     private BigDecimal costoUnitario = BigDecimal.ZERO;
-    private LocalDateTime fecha;
+    private LocalDateTime fecha = LocalDateTime.now();
     private String referencia;
     private Integer idOrden;
     private String usuario;
 
     public MovimientoInventario() {
+    }
+
+    public MovimientoInventario(Repuesto repuesto, TipoMovimiento tipo, int cantidad,
+                                int stockAnterior, int stockResultante, BigDecimal costoUnitario,
+                                String referencia, Integer idOrden, String usuario) {
+        this.repuesto = repuesto;
+        this.tipo = tipo;
+        this.cantidad = cantidad;
+        this.stockAnterior = stockAnterior;
+        this.stockResultante = stockResultante;
+        this.costoUnitario = costoUnitario != null ? costoUnitario : BigDecimal.ZERO;
+        this.referencia = referencia;
+        this.idOrden = idOrden;
+        this.usuario = usuario;
+        this.fecha = LocalDateTime.now();
     }
 
     public Repuesto getRepuesto() {
@@ -41,6 +57,22 @@ public class MovimientoInventario extends EntidadBase {
 
     public void setCantidad(int cantidad) {
         this.cantidad = cantidad;
+    }
+
+    public int getStockAnterior() {
+        return stockAnterior;
+    }
+
+    public void setStockAnterior(int stockAnterior) {
+        this.stockAnterior = stockAnterior;
+    }
+
+    public int getStockResultante() {
+        return stockResultante;
+    }
+
+    public void setStockResultante(int stockResultante) {
+        this.stockResultante = stockResultante;
     }
 
     public BigDecimal getCostoUnitario() {
