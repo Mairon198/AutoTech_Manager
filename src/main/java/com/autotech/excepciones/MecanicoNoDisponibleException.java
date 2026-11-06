@@ -1,6 +1,5 @@
 package com.autotech.excepciones;
 
-/** El mecánico está inactivo o no está disponible. */
 public class MecanicoNoDisponibleException extends AutoTechException {
 
     public MecanicoNoDisponibleException(String mensaje) {

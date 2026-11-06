@@ -1,6 +1,5 @@
 package com.autotech.excepciones;
 
-/** Excepción base del sistema. Todas las demás heredan de ella. */
 public class AutoTechException extends Exception {
 
     public AutoTechException(String mensaje) {

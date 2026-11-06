@@ -1,6 +1,5 @@
 package com.autotech.modelo.enums;
 
-/** Estado del presupuesto frente al cliente. */
 public enum EstadoPresupuesto {
     PENDIENTE("Pendiente"),
     APROBADO("Aprobado"),

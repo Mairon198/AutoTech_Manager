@@ -2,7 +2,6 @@ package com.autotech.modelo;
 
 import java.time.LocalDate;
 
-/** Garantía emitida al finalizar una orden. */
 public class Garantia extends EntidadBase {
 
     private OrdenTrabajo orden;

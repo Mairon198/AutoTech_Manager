@@ -1,6 +1,5 @@
 package com.autotech.modelo;
 
-/** Prueba que respalda el diagnóstico: compresión, temperatura, foto, escáner, etc. */
 public class EvidenciaTecnica extends EntidadBase {
 
     private Diagnostico diagnostico;

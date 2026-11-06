@@ -1,6 +1,5 @@
 package com.autotech.modelo;
 
-/** Ej.: Motores, Transmisiones, Sistema eléctrico, Frenos y suspensión. */
 public class Especialidad extends EntidadBase {
 
     private String nombre;

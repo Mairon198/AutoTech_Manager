@@ -1,6 +1,5 @@
 package com.autotech.modelo;
 
-/** Suministrador de repuestos y motores. */
 public class Proveedor extends EntidadBase {
 
     private String rtn;

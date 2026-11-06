@@ -2,7 +2,6 @@ package modelo;
 
 import java.math.BigDecimal;
 
-/** Línea del presupuesto: un servicio (mano de obra) o un repuesto. */
 public class DetallePresupuesto extends EntidadBase {
 
     private Presupuesto presupuesto;

@@ -1,6 +1,5 @@
 package com.autotech.modelo.enums;
 
-/** Tipo de combustible del vehículo. */
 public enum TipoCombustible {
     GASOLINA("Gasolina"),
     DIESEL("Diésel"),

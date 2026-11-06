@@ -1,6 +1,5 @@
 package excepciones;
 
-/** El pago supera el saldo pendiente de la orden. */
 public class SobrepagoException extends AutoTechException {
 
     public SobrepagoException(String mensaje) {

@@ -1,6 +1,5 @@
 package modelo.enums;
 
-/** Formas de pago aceptadas. */
 public enum MetodoPago {
     EFECTIVO("Efectivo"),
     TARJETA("Tarjeta"),

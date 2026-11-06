@@ -1,6 +1,5 @@
 package com.autotech.modelo.enums;
 
-/** Qué se hace con el motor que se retira del vehículo. */
 public enum DestinoMotorRetirado {
     DEVUELTO_CLIENTE("Devuelto al cliente"),
     RECONSTRUCCION("Enviado a reconstrucción"),

@@ -6,14 +6,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
-/**
- * Fábrica de conexiones a SQL Server (AutoTechDB).
- *
- * Cada llamada a getConexion() entrega una conexión NUEVA, que se usa dentro de
- * un try-with-resources y se cierra al terminar. Así:
- *  - cada transacción (commit / rollback) tiene su propia conexión;
- *  - dos hilos no comparten la misma conexión (requisito de concurrencia).
- */
 public final class ConexionDB {
 
     private static final String DRIVER = "com.microsoft.sqlserver.jdbc.SQLServerDriver";
@@ -32,7 +24,6 @@ public final class ConexionDB {
     private ConexionDB() {
     }
 
-    /** Abre una conexión nueva. Úsela así: try (Connection cn = ConexionDB.getConexion()) { ... } */
     public static Connection getConexion() throws PersistenciaException {
         if (!Configuracion.estaCargado() || URL == null) {
             throw new PersistenciaException("No se encontró config.properties en la carpeta del proyecto. "
@@ -45,7 +36,6 @@ public final class ConexionDB {
         }
     }
 
-    /** Prueba rápida de conexión (para el arranque de la aplicación). */
     public static boolean probarConexion() {
         try (Connection cn = getConexion()) {
             System.out.println("-> Conexión exitosa a " + cn.getCatalog());
@@ -56,7 +46,6 @@ public final class ConexionDB {
         }
     }
 
-    /** Revierte una transacción sin lanzar otra excepción (para usar en los catch). */
     public static void rollback(Connection cn) {
         if (cn != null) {
             try {

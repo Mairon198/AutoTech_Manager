@@ -7,7 +7,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Cotización desglosada por servicios, horas, repuestos, descuento autorizado e impuesto. */
 public class Presupuesto extends EntidadBase {
 
     private OrdenTrabajo orden;
@@ -48,7 +47,6 @@ public class Presupuesto extends EntidadBase {
         return h;
     }
 
-    /** Impuesto sobre (subtotal - descuento). */
     public BigDecimal getMontoImpuesto() {
         if (impuesto == null) {
             return BigDecimal.ZERO;

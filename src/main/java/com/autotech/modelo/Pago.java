@@ -4,7 +4,6 @@ import com.autotech.modelo.enums.MetodoPago;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** Abono parcial o pago total de una orden. */
 public class Pago extends EntidadBase {
 
     private OrdenTrabajo orden;

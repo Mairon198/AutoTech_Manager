@@ -6,7 +6,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Encabezado de la orden de trabajo y sus colecciones de detalle. */
 public class OrdenTrabajo extends EntidadBase {
 
     private String numero;
@@ -46,7 +45,6 @@ public class OrdenTrabajo extends EntidadBase {
         consumos.add(c);
     }
 
-    /** Mecánico responsable principal (o null si aún no se asigna). */
     public Mecanico getResponsable() {
         for (AsignacionMecanico a : asignaciones) {
             if (a.isResponsable()) {
@@ -56,7 +54,6 @@ public class OrdenTrabajo extends EntidadBase {
         return null;
     }
 
-    // ---------- Cálculos (polimorfismo: cada Servicio calcula su costo) ----------
     public BigDecimal getTotalServicios() {
         BigDecimal t = BigDecimal.ZERO;
         for (DetalleOrden d : detalles) {
@@ -85,7 +82,6 @@ public class OrdenTrabajo extends EntidadBase {
         return total.subtract(getTotalPagado());
     }
 
-    // ---------- Reglas para poder finalizar ----------
     public boolean tieneActividadesPendientes() {
         for (ActividadTrabajo a : actividades) {
             if (!a.estaCompletada()) {
@@ -104,7 +100,6 @@ public class OrdenTrabajo extends EntidadBase {
         return false;
     }
 
-    /** True si algún servicio de la orden exige control de calidad. */
     public boolean requiereControlCalidad() {
         for (DetalleOrden d : detalles) {
             if (d.getServicio().requiereControlCalidad()) {
@@ -118,7 +113,7 @@ public class OrdenTrabajo extends EntidadBase {
         if (controles.isEmpty()) {
             return false;
         }
-        return controles.get(controles.size() - 1).isAprobado(); // cuenta el último control
+        return controles.get(controles.size() - 1).isAprobado();
     }
 
     @Override

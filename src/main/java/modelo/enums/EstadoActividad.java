@@ -1,6 +1,5 @@
 package modelo.enums;
 
-/** Estado de una actividad de trabajo. */
 public enum EstadoActividad {
     PENDIENTE("Pendiente"),
     EN_PROCESO("En proceso"),

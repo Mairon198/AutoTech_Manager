@@ -3,12 +3,6 @@ package com.autotech.modelo.enums;
 import java.util.EnumSet;
 import java.util.Set;
 
-/**
- * Flujo de una orden de trabajo:
- * RECIBIDA → EN_DIAGNOSTICO → PENDIENTE_APROBACION → EN_REPARACION
- *          → EN_CONTROL_CALIDAD → FINALIZADA → ENTREGADA
- * Además: RECHAZADA (el cliente no aprueba el presupuesto) y CANCELADA.
- */
 public enum EstadoOrden {
     RECIBIDA("Recibida"),
     EN_DIAGNOSTICO("En diagnóstico"),
@@ -30,7 +24,6 @@ public enum EstadoOrden {
         return descripcion;
     }
 
-    /** Estados a los que se puede pasar desde el estado actual. */
     public Set<EstadoOrden> siguientesPermitidos() {
         switch (this) {
             case RECIBIDA:
@@ -42,12 +35,11 @@ public enum EstadoOrden {
             case EN_REPARACION:
                 return EnumSet.of(EN_CONTROL_CALIDAD, CANCELADA);
             case EN_CONTROL_CALIDAD:
-                // Si el control de calidad falla, la orden regresa a reparación
                 return EnumSet.of(FINALIZADA, EN_REPARACION);
             case FINALIZADA:
                 return EnumSet.of(ENTREGADA);
             default:
-                return EnumSet.noneOf(EstadoOrden.class); // ENTREGADA, RECHAZADA, CANCELADA son finales
+                return EnumSet.noneOf(EstadoOrden.class);
         }
     }
 

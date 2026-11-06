@@ -1,6 +1,5 @@
 package com.autotech.modelo.enums;
 
-/** Categorías del inventario (módulo 5). */
 public enum CategoriaRepuesto {
     ACEITE("Aceite"),
     FILTRO("Filtro"),

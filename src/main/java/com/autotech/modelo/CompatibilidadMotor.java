@@ -1,6 +1,5 @@
 package com.autotech.modelo;
 
-/** Regla de compatibilidad: un motor sirve para cierta marca, modelo y rango de años. */
 public class CompatibilidadMotor extends EntidadBase {
 
     private Motor motor;

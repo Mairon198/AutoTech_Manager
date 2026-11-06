@@ -2,7 +2,6 @@ package com.autotech.modelo;
 
 import java.math.BigDecimal;
 
-/** Servicio incluido en una orden. Guarda el precio del momento (histórico) para que los cambios de catálogo no alteren órdenes ya finalizadas. */
 public class DetalleOrden extends EntidadBase {
 
     private OrdenTrabajo orden;
@@ -14,7 +13,6 @@ public class DetalleOrden extends EntidadBase {
     public DetalleOrden() {
     }
 
-    /** Crea el detalle copiando el costo actual del servicio como precio histórico. */
     public static DetalleOrden desde(Servicio s, int cantidad) {
         DetalleOrden d = new DetalleOrden();
         d.servicio = s;

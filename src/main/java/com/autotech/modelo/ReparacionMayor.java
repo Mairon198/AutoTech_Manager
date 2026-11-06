@@ -3,7 +3,6 @@ package com.autotech.modelo;
 import com.autotech.modelo.enums.NivelComplejidad;
 import java.math.BigDecimal;
 
-/** Nivel 5: reconstrucción y sustitución de motor. Requiere diagnóstico, autorización y garantía. */
 public class ReparacionMayor extends Servicio {
 
     @Override
@@ -31,7 +30,6 @@ public class ReparacionMayor extends Servicio {
         return true;
     }
 
-    /** Las reparaciones mayores siempre generan un documento de garantía. */
     public boolean generaGarantia() {
         return true;
     }

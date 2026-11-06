@@ -3,7 +3,6 @@ package com.autotech.modelo;
 import com.autotech.modelo.enums.NivelComplejidad;
 import java.math.BigDecimal;
 
-/** Nivel 1: aceite, filtros, bujías, luces. Sin recargo ni control de calidad obligatorio. */
 public class MantenimientoBasico extends Servicio {
 
     @Override

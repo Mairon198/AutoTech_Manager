@@ -3,7 +3,6 @@ package com.autotech.modelo;
 import com.autotech.modelo.enums.NivelComplejidad;
 import java.math.BigDecimal;
 
-/** Nivel 4: transmisión, culata, sistema eléctrico. Requiere diagnóstico y control de calidad. */
 public class ReparacionAvanzada extends Servicio {
 
     @Override

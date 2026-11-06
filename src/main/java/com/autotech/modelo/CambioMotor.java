@@ -3,7 +3,6 @@ package com.autotech.modelo;
 import com.autotech.modelo.enums.DestinoMotorRetirado;
 import java.time.LocalDateTime;
 
-/** Registro de la sustitución de motor (caso Toyota Hilux 2015). */
 public class CambioMotor extends EntidadBase {
 
     private OrdenTrabajo orden;
@@ -21,7 +20,6 @@ public class CambioMotor extends EntidadBase {
     public CambioMotor() {
     }
 
-    /** Datos obligatorios antes de poder cerrar el cambio de motor. */
     public boolean datosCompletos() {
         return serieMotorAnterior != null && !serieMotorAnterior.isBlank()
                 && motorNuevo != null

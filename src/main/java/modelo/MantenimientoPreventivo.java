@@ -3,7 +3,6 @@ package modelo;
 import modelo.enums.NivelComplejidad;
 import java.math.BigDecimal;
 
-/** Nivel 2: afinamiento, inyectores, frenos. Recargo del 5 % por inspección. */
 public class MantenimientoPreventivo extends Servicio {
 
     @Override

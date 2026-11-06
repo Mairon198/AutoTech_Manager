@@ -1,6 +1,5 @@
 package com.autotech.modelo.enums;
 
-/** Estado de un motor dentro del inventario. */
 public enum EstadoMotor {
     DISPONIBLE("Disponible"),
     RESERVADO("Reservado"),

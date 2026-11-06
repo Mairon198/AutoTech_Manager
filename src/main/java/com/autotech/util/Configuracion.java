@@ -4,10 +4,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
 
-/**
- * Lee config.properties (en la carpeta raíz del proyecto).
- * Ese archivo no se sube a GitHub porque contiene la contraseña de la BD.
- */
 public final class Configuracion {
 
     private static final String ARCHIVO = "config.properties";

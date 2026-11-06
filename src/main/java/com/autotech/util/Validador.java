@@ -5,12 +5,11 @@ import java.math.BigDecimal;
 import java.time.Year;
 import java.util.regex.Pattern;
 
-/** Validaciones reutilizables de la capa de negocio. */
 public final class Validador {
 
     private static final Pattern CORREO = Pattern.compile("^[\\w.+-]+@[\\w-]+(\\.[\\w-]+)+$");
-    private static final Pattern VIN = Pattern.compile("^[A-HJ-NPR-Z0-9]{17}$"); // 17 caracteres, sin I, O, Q
-    private static final Pattern PLACA = Pattern.compile("^[A-Z]{3}\\s?\\d{4}$");  // formato Honduras: ABC 1234
+    private static final Pattern VIN = Pattern.compile("^[A-HJ-NPR-Z0-9]{17}$");
+    private static final Pattern PLACA = Pattern.compile("^[A-Z]{3}\\s?\\d{4}$");
 
     private Validador() {
     }

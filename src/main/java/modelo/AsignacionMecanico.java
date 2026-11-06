@@ -2,7 +2,6 @@ package modelo;
 
 import java.time.LocalDateTime;
 
-/** Mecánico asignado a una orden (tabla puente). Solo uno es el responsable principal. */
 public class AsignacionMecanico extends EntidadBase {
 
     private OrdenTrabajo orden;

@@ -3,7 +3,6 @@ package modelo;
 import java.time.LocalDateTime;
 import java.util.Objects;
 
-/** Comportamiento común de todas las entidades: id, estado activo y fecha de creación. */
 public abstract class EntidadBase {
 
     protected int id;
@@ -34,7 +33,6 @@ public abstract class EntidadBase {
         this.fechaCreacion = fechaCreacion;
     }
 
-    /** Indica si la entidad todavía no se ha guardado en la BD. */
     public boolean esNueva() {
         return id <= 0;
     }

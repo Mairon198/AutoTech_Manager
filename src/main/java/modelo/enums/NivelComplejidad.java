@@ -1,6 +1,5 @@
 package modelo.enums;
 
-/** Clasificación de servicios del taller (sección 3 del enunciado). */
 public enum NivelComplejidad {
     BASICO(1, "Mantenimiento básico"),
     PREVENTIVO(2, "Mantenimiento preventivo"),

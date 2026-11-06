@@ -2,7 +2,6 @@ package modelo;
 
 import java.time.LocalDateTime;
 
-/** Verificación previa a la entrega del vehículo. */
 public class ControlCalidad extends EntidadBase {
 
     private OrdenTrabajo orden;

@@ -3,7 +3,6 @@ package com.autotech.modelo;
 import com.autotech.modelo.enums.NivelComplejidad;
 import java.math.BigDecimal;
 
-/** Nivel 3: radiador, alternador, suspensión, embrague. Control de calidad obligatorio. */
 public class ReparacionIntermedia extends Servicio {
 
     @Override

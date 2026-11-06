@@ -2,7 +2,6 @@ package com.autotech.modelo;
 
 import java.math.BigDecimal;
 
-/** Impuesto configurable (ej.: ISV 15 %). */
 public class ConfiguracionImpuesto extends EntidadBase {
 
     private String nombre;
@@ -11,7 +10,6 @@ public class ConfiguracionImpuesto extends EntidadBase {
     public ConfiguracionImpuesto() {
     }
 
-    /** Porcentaje expresado como fracción: 15 -> 0.15 */
     public BigDecimal getFactor() {
         return porcentaje.divide(new BigDecimal("100"));
     }

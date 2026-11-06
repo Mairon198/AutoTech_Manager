@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Evaluación técnica de la orden (módulo 6). */
 public class Diagnostico extends EntidadBase {
 
     private OrdenTrabajo orden;

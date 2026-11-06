@@ -2,7 +2,6 @@ package com.autotech.modelo;
 
 import com.autotech.modelo.enums.NivelComplejidad;
 
-/** Crea la subclase correcta de Servicio según el nivel guardado en la BD. */
 public final class ServicioFactory {
 
     private ServicioFactory() {

@@ -1,6 +1,5 @@
 package modelo;
 
-/** Datos comunes de clientes y mecánicos. */
 public abstract class Persona extends EntidadBase {
 
     protected String identidad;
@@ -14,7 +13,6 @@ public abstract class Persona extends EntidadBase {
         return nombre + " " + (apellido == null ? "" : apellido);
     }
 
-    /** Cada subclase indica qué rol cumple la persona en el taller. */
     public abstract String getTipoPersona();
 
     public String getIdentidad() {

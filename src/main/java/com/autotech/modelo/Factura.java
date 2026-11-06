@@ -3,7 +3,6 @@ package com.autotech.modelo;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** Factura emitida para una orden finalizada. */
 public class Factura extends EntidadBase {
 
     private OrdenTrabajo orden;
