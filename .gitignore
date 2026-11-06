@@ -19,8 +19,8 @@ dist/
 *.log
 hs_err_pid*
 
-# Configuración local (credenciales de BD)
-db.properties
+# Datos de conexión (contienen la contraseña): cada integrante tiene su copia local
+config.properties
 
 # Sistema operativo
 Thumbs.db
