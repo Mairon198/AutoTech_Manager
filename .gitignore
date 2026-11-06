@@ -1,0 +1,28 @@
+# Maven / NetBeans
+/target/
+nbproject/private/
+nbactions*.xml
+nb-configuration.xml
+build/
+dist/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Java
+*.class
+*.log
+hs_err_pid*
+
+# Configuración local (credenciales de BD)
+db.properties
+
+# Sistema operativo
+Thumbs.db
+desktop.ini
+.DS_Store
