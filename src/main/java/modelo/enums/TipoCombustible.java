@@ -1,6 +1,5 @@
 package modelo.enums;
 
-/** Tipo de combustible del vehículo. */
 public enum TipoCombustible {
     GASOLINA("Gasolina"),
     DIESEL("Diésel"),

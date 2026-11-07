@@ -13,6 +13,7 @@ public class Vehiculo extends EntidadBase {
     private String color;
     private int kilometraje;
     private TipoCombustible combustible;
+    private String serieMotorActual;
 
     public Vehiculo() {
     }
@@ -103,6 +104,14 @@ public class Vehiculo extends EntidadBase {
 
     public void setCombustible(TipoCombustible combustible) {
         this.combustible = combustible;
+    }
+
+    public String getSerieMotorActual() {
+        return serieMotorActual;
+    }
+
+    public void setSerieMotorActual(String serieMotorActual) {
+        this.serieMotorActual = serieMotorActual;
     }
 
     @Override

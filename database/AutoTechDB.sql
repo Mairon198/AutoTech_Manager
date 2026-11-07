@@ -2,11 +2,13 @@
    AutoTech Manager - Base de datos AutoTechDB (SQL Server / Azure SQL)
    Programación Avanzada II - Segundo Parcial
    ---------------------------------------------------------------------
+   Convención de nombres (la misma que usan los DAO del proyecto):
+     - tablas en PascalCase:   dbo.Clientes, dbo.OrdenesTrabajo ...
+     - columnas en snake_case:  cliente_id, stock_actual, fecha_registro ...
+   ---------------------------------------------------------------------
    Cómo ejecutarlo:
-   1. Crear la base AutoTechDB (en Azure: portal > SQL databases > Create,
-      en el mismo servidor, plan Basic).
-   2. Conectarse a AutoTechDB con SSMS o con VS Code (extensión mssql)
-      y ejecutar este archivo completo (F5).
+   1. Conectarse a AutoTechDB con SSMS o VS Code (extensión mssql).
+   2. Ejecutar este archivo completo (F5).
    ATENCIÓN: la sección 0 BORRA todas las tablas y las vuelve a crear,
    así que el script se puede ejecutar varias veces durante el desarrollo.
    ---------------------------------------------------------------------
@@ -19,12 +21,12 @@
      5. Catálogo de servicios
      6. Órdenes de trabajo y detalle
      7. Diagnóstico y presupuesto
-     8. Actividades, consumos y control de calidad
+     8. Actividades, repuestos por orden, movimientos y control de calidad
      9. Motores y cambio de motor
     10. Garantías, pagos y facturas
     11. Auditoría
     12. Funciones
-    13. Triggers de auditoría
+    13. Triggers
     14. Procedimientos almacenados
     15. Vistas administrativas
     16. Datos de prueba
@@ -37,9 +39,11 @@
    ===================================================================== */
 DROP VIEW IF EXISTS dbo.vw_HistorialVehiculo;
 DROP VIEW IF EXISTS dbo.vw_OrdenesResumen;
-DROP VIEW IF EXISTS dbo.vw_InventarioBajoMinimo;
+DROP VIEW IF EXISTS dbo.vw_StockBajo;
+DROP VIEW IF EXISTS dbo.vw_SaldosFacturas;
 DROP VIEW IF EXISTS dbo.vw_ProductividadMecanicos;
 DROP VIEW IF EXISTS dbo.vw_ServiciosMasSolicitados;
+DROP VIEW IF EXISTS dbo.vw_InventarioBajoMinimo;      -- nombre anterior
 DROP PROCEDURE IF EXISTS dbo.sp_ConsumirRepuesto;
 DROP PROCEDURE IF EXISTS dbo.sp_RegistrarEntradaInventario;
 DROP PROCEDURE IF EXISTS dbo.sp_AsignarMecanico;
@@ -60,7 +64,8 @@ DROP TABLE IF EXISTS dbo.CompatibilidadMotor;
 DROP TABLE IF EXISTS dbo.Motores;
 DROP TABLE IF EXISTS dbo.ControlesCalidad;
 DROP TABLE IF EXISTS dbo.MovimientosInventario;
-DROP TABLE IF EXISTS dbo.ConsumoRepuestos;
+DROP TABLE IF EXISTS dbo.RepuestosOrden;
+DROP TABLE IF EXISTS dbo.ConsumoRepuestos;              -- nombre anterior
 DROP TABLE IF EXISTS dbo.ActividadesTrabajo;
 DROP TABLE IF EXISTS dbo.DetallePresupuesto;
 DROP TABLE IF EXISTS dbo.Presupuestos;
@@ -90,39 +95,39 @@ GO
 
 -- Estados posibles de una orden (mismo flujo que el enum EstadoOrden de Java)
 CREATE TABLE dbo.EstadosOrden (
-    Codigo       VARCHAR(25)  NOT NULL CONSTRAINT PK_EstadosOrden PRIMARY KEY,
-    Descripcion  VARCHAR(50)  NOT NULL,
-    Secuencia    TINYINT      NOT NULL,
-    EsFinal      BIT          NOT NULL CONSTRAINT DF_EstadosOrden_EsFinal DEFAULT 0
+    codigo       VARCHAR(25)  NOT NULL CONSTRAINT PK_EstadosOrden PRIMARY KEY,
+    descripcion  VARCHAR(50)  NOT NULL,
+    secuencia    TINYINT      NOT NULL,
+    es_final     BIT          NOT NULL CONSTRAINT DF_EstadosOrden_EsFinal DEFAULT 0
 );
 GO
 
 -- Cambios de estado permitidos (tabla puente estado -> estado)
 CREATE TABLE dbo.TransicionesEstadoOrden (
-    EstadoActual     VARCHAR(25) NOT NULL CONSTRAINT FK_Trans_Actual    REFERENCES dbo.EstadosOrden(Codigo),
-    EstadoSiguiente  VARCHAR(25) NOT NULL CONSTRAINT FK_Trans_Siguiente REFERENCES dbo.EstadosOrden(Codigo),
-    CONSTRAINT PK_TransicionesEstadoOrden PRIMARY KEY (EstadoActual, EstadoSiguiente),
-    CONSTRAINT CK_Trans_Distinto CHECK (EstadoActual <> EstadoSiguiente)
+    estado_actual     VARCHAR(25) NOT NULL CONSTRAINT FK_Trans_Actual    REFERENCES dbo.EstadosOrden(codigo),
+    estado_siguiente  VARCHAR(25) NOT NULL CONSTRAINT FK_Trans_Siguiente REFERENCES dbo.EstadosOrden(codigo),
+    CONSTRAINT PK_TransicionesEstadoOrden PRIMARY KEY (estado_actual, estado_siguiente),
+    CONSTRAINT CK_Trans_Distinto CHECK (estado_actual <> estado_siguiente)
 );
 GO
 
 -- Impuestos configurables (ej.: ISV 15 %). Solo uno puede ser el predeterminado.
 CREATE TABLE dbo.ConfiguracionImpuestos (
-    IdImpuesto       INT IDENTITY(1,1) CONSTRAINT PK_ConfiguracionImpuestos PRIMARY KEY,
-    Nombre           VARCHAR(50)   NOT NULL CONSTRAINT UQ_Impuestos_Nombre UNIQUE,
-    Porcentaje       DECIMAL(5,2)  NOT NULL CONSTRAINT CK_Impuestos_Porcentaje CHECK (Porcentaje BETWEEN 0 AND 100),
-    EsPredeterminado BIT           NOT NULL CONSTRAINT DF_Impuestos_Predet DEFAULT 0,
-    Activo           BIT           NOT NULL CONSTRAINT DF_Impuestos_Activo DEFAULT 1
+    impuesto_id        INT IDENTITY(1,1) CONSTRAINT PK_ConfiguracionImpuestos PRIMARY KEY,
+    nombre             VARCHAR(50)   NOT NULL CONSTRAINT UQ_Impuestos_Nombre UNIQUE,
+    porcentaje         DECIMAL(5,2)  NOT NULL CONSTRAINT CK_Impuestos_Porcentaje CHECK (porcentaje BETWEEN 0 AND 100),
+    es_predeterminado  BIT           NOT NULL CONSTRAINT DF_Impuestos_Predet DEFAULT 0,
+    activo             BIT           NOT NULL CONSTRAINT DF_Impuestos_Activo DEFAULT 1
 );
 GO
-CREATE UNIQUE INDEX UX_Impuestos_Predeterminado ON dbo.ConfiguracionImpuestos(EsPredeterminado) WHERE EsPredeterminado = 1;
+CREATE UNIQUE INDEX UX_Impuestos_Predeterminado ON dbo.ConfiguracionImpuestos(es_predeterminado) WHERE es_predeterminado = 1;
 GO
 
 CREATE TABLE dbo.Especialidades (
-    IdEspecialidad INT IDENTITY(1,1) CONSTRAINT PK_Especialidades PRIMARY KEY,
-    Nombre         VARCHAR(60)   NOT NULL CONSTRAINT UQ_Especialidades_Nombre UNIQUE,
-    Descripcion    VARCHAR(200)  NULL,
-    Activo         BIT           NOT NULL CONSTRAINT DF_Especialidades_Activo DEFAULT 1
+    especialidad_id  INT IDENTITY(1,1) CONSTRAINT PK_Especialidades PRIMARY KEY,
+    nombre           VARCHAR(60)   NOT NULL CONSTRAINT UQ_Especialidades_Nombre UNIQUE,
+    descripcion      VARCHAR(200)  NULL,
+    activo           BIT           NOT NULL CONSTRAINT DF_Especialidades_Activo DEFAULT 1
 );
 GO
 
@@ -131,43 +136,45 @@ GO
    2. CLIENTES Y VEHÍCULOS (Módulo 1)
    ===================================================================== */
 CREATE TABLE dbo.Clientes (
-    IdCliente      INT IDENTITY(1,1) CONSTRAINT PK_Clientes PRIMARY KEY,
-    Identidad      VARCHAR(20)   NOT NULL CONSTRAINT UQ_Clientes_Identidad UNIQUE,
-    Nombre         VARCHAR(80)   NOT NULL,
-    Apellido       VARCHAR(80)   NULL,
-    Telefono       VARCHAR(20)   NULL,
-    Correo         VARCHAR(120)  NULL,
-    Direccion      VARCHAR(200)  NULL,
-    Activo         BIT           NOT NULL CONSTRAINT DF_Clientes_Activo DEFAULT 1,
-    FechaCreacion  DATETIME2(0)  NOT NULL CONSTRAINT DF_Clientes_Fecha  DEFAULT SYSDATETIME(),
-    CONSTRAINT CK_Clientes_Nombre CHECK (LEN(LTRIM(Nombre)) > 0),
-    CONSTRAINT CK_Clientes_Correo CHECK (Correo IS NULL OR Correo LIKE '%_@_%._%')
+    cliente_id      INT IDENTITY(1,1) CONSTRAINT PK_Clientes PRIMARY KEY,
+    identificacion  VARCHAR(20)   NOT NULL CONSTRAINT UQ_Clientes_Identificacion UNIQUE,
+    nombre          VARCHAR(150)  NOT NULL,            -- nombre completo
+    telefono        VARCHAR(20)   NULL,
+    correo          VARCHAR(120)  NULL,
+    direccion       VARCHAR(200)  NULL,
+    tipo_cliente    VARCHAR(15)   NOT NULL CONSTRAINT DF_Clientes_Tipo   DEFAULT 'PARTICULAR',
+    activo          BIT           NOT NULL CONSTRAINT DF_Clientes_Activo DEFAULT 1,
+    fecha_registro  DATETIME2(0)  NOT NULL CONSTRAINT DF_Clientes_Fecha  DEFAULT SYSDATETIME(),
+    CONSTRAINT CK_Clientes_Nombre CHECK (LEN(LTRIM(nombre)) > 0),
+    CONSTRAINT CK_Clientes_Correo CHECK (correo IS NULL OR correo = '' OR correo LIKE '%_@_%._%'),
+    CONSTRAINT CK_Clientes_Tipo   CHECK (tipo_cliente IN ('PARTICULAR','CORPORATIVO'))
 );
 GO
 
 CREATE TABLE dbo.Vehiculos (
-    IdVehiculo     INT IDENTITY(1,1) CONSTRAINT PK_Vehiculos PRIMARY KEY,
-    IdCliente      INT           NOT NULL CONSTRAINT FK_Vehiculos_Clientes REFERENCES dbo.Clientes(IdCliente),
-    Placa          VARCHAR(10)   NOT NULL CONSTRAINT UQ_Vehiculos_Placa UNIQUE,
-    VIN            CHAR(17)      NOT NULL CONSTRAINT UQ_Vehiculos_VIN   UNIQUE,
-    Marca          VARCHAR(40)   NOT NULL,
-    Modelo         VARCHAR(40)   NOT NULL,
-    Anio           SMALLINT      NOT NULL,
-    Color          VARCHAR(30)   NULL,
-    Kilometraje    INT           NOT NULL CONSTRAINT DF_Vehiculos_Km DEFAULT 0,
-    Combustible    VARCHAR(15)   NOT NULL,
-    Activo         BIT           NOT NULL CONSTRAINT DF_Vehiculos_Activo DEFAULT 1,
-    FechaCreacion  DATETIME2(0)  NOT NULL CONSTRAINT DF_Vehiculos_Fecha  DEFAULT SYSDATETIME(),
-    CONSTRAINT CK_Vehiculos_Placa       CHECK (Placa LIKE '[A-Z][A-Z][A-Z] [0-9][0-9][0-9][0-9]'),
-    CONSTRAINT CK_Vehiculos_VIN         CHECK (LEN(VIN) = 17 AND VIN NOT LIKE '%[IOQ]%'),
-    CONSTRAINT CK_Vehiculos_Anio        CHECK (Anio BETWEEN 1950 AND 2100),
-    CONSTRAINT CK_Vehiculos_Km          CHECK (Kilometraje >= 0),
-    CONSTRAINT CK_Vehiculos_Combustible CHECK (Combustible IN ('GASOLINA','DIESEL','HIBRIDO','ELECTRICO','GLP')),
+    vehiculo_id         INT IDENTITY(1,1) CONSTRAINT PK_Vehiculos PRIMARY KEY,
+    cliente_id          INT           NOT NULL CONSTRAINT FK_Vehiculos_Clientes REFERENCES dbo.Clientes(cliente_id),
+    placa               VARCHAR(10)   NOT NULL CONSTRAINT UQ_Vehiculos_Placa UNIQUE,
+    vin                 CHAR(17)      NOT NULL CONSTRAINT UQ_Vehiculos_VIN   UNIQUE,
+    marca               VARCHAR(40)   NOT NULL,
+    modelo              VARCHAR(40)   NOT NULL,
+    anio                SMALLINT      NOT NULL,
+    color               VARCHAR(30)   NULL,
+    kilometraje         INT           NOT NULL CONSTRAINT DF_Vehiculos_Km DEFAULT 0,
+    combustible         VARCHAR(15)   NOT NULL,
+    serie_motor_actual  VARCHAR(30)   NULL,
+    activo              BIT           NOT NULL CONSTRAINT DF_Vehiculos_Activo DEFAULT 1,
+    fecha_registro      DATETIME2(0)  NOT NULL CONSTRAINT DF_Vehiculos_Fecha  DEFAULT SYSDATETIME(),
+    CONSTRAINT CK_Vehiculos_Placa       CHECK (placa LIKE '[A-Z][A-Z][A-Z] [0-9][0-9][0-9][0-9]'),
+    CONSTRAINT CK_Vehiculos_VIN         CHECK (LEN(vin) = 17 AND vin NOT LIKE '%[IOQ]%'),
+    CONSTRAINT CK_Vehiculos_Anio        CHECK (anio BETWEEN 1950 AND 2100),
+    CONSTRAINT CK_Vehiculos_Km          CHECK (kilometraje >= 0),
+    CONSTRAINT CK_Vehiculos_Combustible CHECK (combustible IN ('GASOLINA','DIESEL','HIBRIDO','ELECTRICO','GLP')),
     -- Permite que OrdenesTrabajo verifique que el vehículo pertenece al cliente
-    CONSTRAINT UQ_Vehiculos_IdCliente UNIQUE (IdVehiculo, IdCliente)
+    CONSTRAINT UQ_Vehiculos_Cliente UNIQUE (vehiculo_id, cliente_id)
 );
 GO
-CREATE INDEX IX_Vehiculos_Cliente ON dbo.Vehiculos(IdCliente);
+CREATE INDEX IX_Vehiculos_Cliente ON dbo.Vehiculos(cliente_id);
 GO
 
 
@@ -175,65 +182,66 @@ GO
    3. MECÁNICOS (Módulo 4)
    ===================================================================== */
 CREATE TABLE dbo.Mecanicos (
-    IdMecanico      INT IDENTITY(1,1) CONSTRAINT PK_Mecanicos PRIMARY KEY,
-    CodigoEmpleado  VARCHAR(10)   NOT NULL CONSTRAINT UQ_Mecanicos_Codigo    UNIQUE,
-    Identidad       VARCHAR(20)   NOT NULL CONSTRAINT UQ_Mecanicos_Identidad UNIQUE,
-    Nombre          VARCHAR(80)   NOT NULL,
-    Apellido        VARCHAR(80)   NULL,
-    Telefono        VARCHAR(20)   NULL,
-    Correo          VARCHAR(120)  NULL,
-    Direccion       VARCHAR(200)  NULL,
-    TarifaHora      DECIMAL(10,2) NOT NULL CONSTRAINT DF_Mecanicos_Tarifa DEFAULT 0,
-    Disponible      BIT           NOT NULL CONSTRAINT DF_Mecanicos_Disp   DEFAULT 1,
-    Activo          BIT           NOT NULL CONSTRAINT DF_Mecanicos_Activo DEFAULT 1,
-    FechaCreacion   DATETIME2(0)  NOT NULL CONSTRAINT DF_Mecanicos_Fecha  DEFAULT SYSDATETIME(),
-    CONSTRAINT CK_Mecanicos_Tarifa CHECK (TarifaHora >= 0)
+    mecanico_id          INT IDENTITY(1,1) CONSTRAINT PK_Mecanicos PRIMARY KEY,
+    codigo_empleado      VARCHAR(10)   NOT NULL CONSTRAINT UQ_Mecanicos_Codigo         UNIQUE,
+    identificacion       VARCHAR(20)   NOT NULL CONSTRAINT UQ_Mecanicos_Identificacion UNIQUE,
+    nombre               VARCHAR(150)  NOT NULL,       -- nombre completo
+    telefono             VARCHAR(20)   NULL,
+    correo               VARCHAR(120)  NULL,
+    nivel_certificacion  VARCHAR(10)   NOT NULL CONSTRAINT DF_Mecanicos_Nivel  DEFAULT 'SENIOR',
+    tarifa_hora          DECIMAL(10,2) NOT NULL CONSTRAINT DF_Mecanicos_Tarifa DEFAULT 0,
+    disponible           BIT           NOT NULL CONSTRAINT DF_Mecanicos_Disp   DEFAULT 1,
+    activo               BIT           NOT NULL CONSTRAINT DF_Mecanicos_Activo DEFAULT 1,
+    fecha_ingreso        DATETIME2(0)  NOT NULL CONSTRAINT DF_Mecanicos_Fecha  DEFAULT SYSDATETIME(),
+    CONSTRAINT CK_Mecanicos_Tarifa CHECK (tarifa_hora >= 0),
+    CONSTRAINT CK_Mecanicos_Nivel  CHECK (nivel_certificacion IN ('JUNIOR','SENIOR','MASTER'))
 );
 GO
 
 -- Tabla puente: un mecánico tiene varias especialidades
 CREATE TABLE dbo.MecanicoEspecialidades (
-    IdMecanico      INT NOT NULL CONSTRAINT FK_MecEsp_Mecanico     REFERENCES dbo.Mecanicos(IdMecanico),
-    IdEspecialidad  INT NOT NULL CONSTRAINT FK_MecEsp_Especialidad REFERENCES dbo.Especialidades(IdEspecialidad),
-    CONSTRAINT PK_MecanicoEspecialidades PRIMARY KEY (IdMecanico, IdEspecialidad)
+    mecanico_id      INT NOT NULL CONSTRAINT FK_MecEsp_Mecanico     REFERENCES dbo.Mecanicos(mecanico_id),
+    especialidad_id  INT NOT NULL CONSTRAINT FK_MecEsp_Especialidad REFERENCES dbo.Especialidades(especialidad_id),
+    CONSTRAINT PK_MecanicoEspecialidades PRIMARY KEY (mecanico_id, especialidad_id)
 );
 GO
 
 
 /* =====================================================================
-   4. PROVEEDORES, REPUESTOS E INVENTARIO (Módulo 5)
+   4. PROVEEDORES Y REPUESTOS (Módulo 5)
    ===================================================================== */
 CREATE TABLE dbo.Proveedores (
-    IdProveedor    INT IDENTITY(1,1) CONSTRAINT PK_Proveedores PRIMARY KEY,
-    RTN            VARCHAR(20)   NOT NULL CONSTRAINT UQ_Proveedores_RTN UNIQUE,
-    Nombre         VARCHAR(100)  NOT NULL,
-    Contacto       VARCHAR(80)   NULL,
-    Telefono       VARCHAR(20)   NULL,
-    Correo         VARCHAR(120)  NULL,
-    Direccion      VARCHAR(200)  NULL,
-    Activo         BIT           NOT NULL CONSTRAINT DF_Proveedores_Activo DEFAULT 1,
-    FechaCreacion  DATETIME2(0)  NOT NULL CONSTRAINT DF_Proveedores_Fecha  DEFAULT SYSDATETIME()
+    proveedor_id    INT IDENTITY(1,1) CONSTRAINT PK_Proveedores PRIMARY KEY,
+    rtn             VARCHAR(20)   NOT NULL CONSTRAINT UQ_Proveedores_RTN UNIQUE,
+    nombre          VARCHAR(100)  NOT NULL,
+    contacto        VARCHAR(80)   NULL,
+    telefono        VARCHAR(20)   NULL,
+    correo          VARCHAR(120)  NULL,
+    direccion       VARCHAR(200)  NULL,
+    activo          BIT           NOT NULL CONSTRAINT DF_Proveedores_Activo DEFAULT 1,
+    fecha_registro  DATETIME2(0)  NOT NULL CONSTRAINT DF_Proveedores_Fecha  DEFAULT SYSDATETIME()
 );
 GO
 
 CREATE TABLE dbo.Repuestos (
-    IdRepuesto     INT IDENTITY(1,1) CONSTRAINT PK_Repuestos PRIMARY KEY,
-    Codigo         VARCHAR(20)   NOT NULL CONSTRAINT UQ_Repuestos_Codigo UNIQUE,
-    Nombre         VARCHAR(100)  NOT NULL,
-    Categoria      VARCHAR(15)   NOT NULL,
-    Marca          VARCHAR(40)   NULL,
-    Stock          INT           NOT NULL CONSTRAINT DF_Repuestos_Stock    DEFAULT 0,
-    StockMinimo    INT           NOT NULL CONSTRAINT DF_Repuestos_StockMin DEFAULT 0,
-    CostoUnitario  DECIMAL(12,2) NOT NULL CONSTRAINT DF_Repuestos_Costo    DEFAULT 0,
-    PrecioVenta    DECIMAL(12,2) NOT NULL CONSTRAINT DF_Repuestos_Precio   DEFAULT 0,
-    IdProveedor    INT           NULL CONSTRAINT FK_Repuestos_Proveedores REFERENCES dbo.Proveedores(IdProveedor),
-    Activo         BIT           NOT NULL CONSTRAINT DF_Repuestos_Activo DEFAULT 1,
-    FechaCreacion  DATETIME2(0)  NOT NULL CONSTRAINT DF_Repuestos_Fecha  DEFAULT SYSDATETIME(),
-    CONSTRAINT CK_Repuestos_Stock     CHECK (Stock >= 0),          -- nunca stock negativo
-    CONSTRAINT CK_Repuestos_StockMin  CHECK (StockMinimo >= 0),
-    CONSTRAINT CK_Repuestos_Costo     CHECK (CostoUnitario >= 0),
-    CONSTRAINT CK_Repuestos_Precio    CHECK (PrecioVenta >= 0),
-    CONSTRAINT CK_Repuestos_Categoria CHECK (Categoria IN ('ACEITE','FILTRO','BUJIA','BATERIA','FRENOS','RADIADOR',
+    repuesto_id     INT IDENTITY(1,1) CONSTRAINT PK_Repuestos PRIMARY KEY,
+    codigo          VARCHAR(20)   NOT NULL CONSTRAINT UQ_Repuestos_Codigo UNIQUE,
+    nombre          VARCHAR(100)  NOT NULL,
+    categoria       VARCHAR(15)   NOT NULL,
+    marca           VARCHAR(40)   NULL,
+    proveedor_id    INT           NULL CONSTRAINT FK_Repuestos_Proveedores REFERENCES dbo.Proveedores(proveedor_id),
+    stock_actual    INT           NOT NULL CONSTRAINT DF_Repuestos_Stock    DEFAULT 0,
+    stock_minimo    INT           NOT NULL CONSTRAINT DF_Repuestos_StockMin DEFAULT 0,
+    costo_compra    DECIMAL(12,2) NOT NULL CONSTRAINT DF_Repuestos_Costo    DEFAULT 0,
+    precio_venta    DECIMAL(12,2) NOT NULL CONSTRAINT DF_Repuestos_Precio   DEFAULT 0,
+    ubicacion       VARCHAR(40)   NULL,
+    activo          BIT           NOT NULL CONSTRAINT DF_Repuestos_Activo DEFAULT 1,
+    fecha_registro  DATETIME2(0)  NOT NULL CONSTRAINT DF_Repuestos_Fecha  DEFAULT SYSDATETIME(),
+    CONSTRAINT CK_Repuestos_Stock     CHECK (stock_actual >= 0),          -- nunca stock negativo
+    CONSTRAINT CK_Repuestos_StockMin  CHECK (stock_minimo >= 0),
+    CONSTRAINT CK_Repuestos_Costo     CHECK (costo_compra >= 0),
+    CONSTRAINT CK_Repuestos_Precio    CHECK (precio_venta >= 0),
+    CONSTRAINT CK_Repuestos_Categoria CHECK (categoria IN ('ACEITE','FILTRO','BUJIA','BATERIA','FRENOS','RADIADOR',
                                                           'TRANSMISION','MOTOR','ELECTRICO','SUSPENSION','OTRO'))
 );
 GO
@@ -243,28 +251,29 @@ GO
    5. CATÁLOGO DE SERVICIOS (Módulo 2)
    ===================================================================== */
 CREATE TABLE dbo.Servicios (
-    IdServicio          INT IDENTITY(1,1) CONSTRAINT PK_Servicios PRIMARY KEY,
-    Codigo              VARCHAR(10)   NOT NULL CONSTRAINT UQ_Servicios_Codigo UNIQUE,
-    Nombre              VARCHAR(100)  NOT NULL,
-    Descripcion         VARCHAR(300)  NULL,
-    Nivel               TINYINT       NOT NULL,   -- 1 básico ... 5 reparación mayor
-    CostoManoObra       DECIMAL(12,2) NOT NULL,   -- costo base vigente (el histórico queda en DetalleOrden)
-    TiempoEstimadoHoras DECIMAL(6,2)  NOT NULL,
-    Activo              BIT           NOT NULL CONSTRAINT DF_Servicios_Activo DEFAULT 1,
-    FechaCreacion       DATETIME2(0)  NOT NULL CONSTRAINT DF_Servicios_Fecha  DEFAULT SYSDATETIME(),
-    CONSTRAINT CK_Servicios_Nivel  CHECK (Nivel BETWEEN 1 AND 5),
-    CONSTRAINT CK_Servicios_Costo  CHECK (CostoManoObra >= 0),
-    CONSTRAINT CK_Servicios_Tiempo CHECK (TiempoEstimadoHoras > 0)
+    servicio_id            INT IDENTITY(1,1) CONSTRAINT PK_Servicios PRIMARY KEY,
+    codigo                 VARCHAR(10)   NOT NULL CONSTRAINT UQ_Servicios_Codigo UNIQUE,
+    nombre                 VARCHAR(100)  NOT NULL,
+    descripcion            VARCHAR(300)  NULL,
+    nivel_complejidad      TINYINT       NOT NULL,   -- 1 básico ... 5 reparación mayor
+    categoria_complejidad  VARCHAR(40)   NULL,       -- texto del nivel (ej.: "Mantenimiento básico")
+    costo_mano_obra        DECIMAL(12,2) NOT NULL,   -- costo vigente (el histórico queda en DetalleOrden)
+    tiempo_estimado_horas  DECIMAL(6,2)  NOT NULL,
+    activo                 BIT           NOT NULL CONSTRAINT DF_Servicios_Activo DEFAULT 1,
+    fecha_registro         DATETIME2(0)  NOT NULL CONSTRAINT DF_Servicios_Fecha  DEFAULT SYSDATETIME(),
+    CONSTRAINT CK_Servicios_Nivel  CHECK (nivel_complejidad BETWEEN 1 AND 5),
+    CONSTRAINT CK_Servicios_Costo  CHECK (costo_mano_obra >= 0),
+    CONSTRAINT CK_Servicios_Tiempo CHECK (tiempo_estimado_horas > 0)
 );
 GO
 
 -- Tabla puente: repuestos asociados a cada servicio
 CREATE TABLE dbo.ServicioRepuestos (
-    IdServicio        INT NOT NULL CONSTRAINT FK_ServRep_Servicio REFERENCES dbo.Servicios(IdServicio),
-    IdRepuesto        INT NOT NULL CONSTRAINT FK_ServRep_Repuesto REFERENCES dbo.Repuestos(IdRepuesto),
-    CantidadSugerida  INT NOT NULL CONSTRAINT DF_ServRep_Cantidad DEFAULT 1,
-    CONSTRAINT PK_ServicioRepuestos PRIMARY KEY (IdServicio, IdRepuesto),
-    CONSTRAINT CK_ServRep_Cantidad CHECK (CantidadSugerida > 0)
+    servicio_id        INT NOT NULL CONSTRAINT FK_ServRep_Servicio REFERENCES dbo.Servicios(servicio_id),
+    repuesto_id        INT NOT NULL CONSTRAINT FK_ServRep_Repuesto REFERENCES dbo.Repuestos(repuesto_id),
+    cantidad_sugerida  INT NOT NULL CONSTRAINT DF_ServRep_Cantidad DEFAULT 1,
+    CONSTRAINT PK_ServicioRepuestos PRIMARY KEY (servicio_id, repuesto_id),
+    CONSTRAINT CK_ServRep_Cantidad CHECK (cantidad_sugerida > 0)
 );
 GO
 
@@ -273,57 +282,57 @@ GO
    6. ÓRDENES DE TRABAJO (Módulo 3)
    ===================================================================== */
 CREATE TABLE dbo.OrdenesTrabajo (
-    IdOrden                INT IDENTITY(1,1) CONSTRAINT PK_OrdenesTrabajo PRIMARY KEY,
-    -- Número único y legible, calculado a partir del Id: OT-000001
-    Numero                 AS ('OT-' + RIGHT('000000' + CAST(IdOrden AS VARCHAR(10)), 6)) PERSISTED,
-    IdCliente              INT           NOT NULL,
-    IdVehiculo             INT           NOT NULL,
-    FechaIngreso           DATETIME2(0)  NOT NULL CONSTRAINT DF_Ordenes_FechaIngreso DEFAULT SYSDATETIME(),
-    KilometrajeIngreso     INT           NOT NULL,
-    Sintomas               VARCHAR(500)  NOT NULL,
-    DiagnosticoPreliminar  VARCHAR(500)  NULL,
-    Estado                 VARCHAR(25)   NOT NULL CONSTRAINT DF_Ordenes_Estado DEFAULT 'RECIBIDA'
-                                         CONSTRAINT FK_Ordenes_Estado REFERENCES dbo.EstadosOrden(Codigo),
-    FechaEntrega           DATETIME2(0)  NULL,
-    Activo                 BIT           NOT NULL CONSTRAINT DF_Ordenes_Activo DEFAULT 1,
-    FechaCreacion          DATETIME2(0)  NOT NULL CONSTRAINT DF_Ordenes_Fecha  DEFAULT SYSDATETIME(),
-    CONSTRAINT UQ_Ordenes_Numero UNIQUE (Numero),
-    CONSTRAINT FK_Ordenes_Clientes  FOREIGN KEY (IdCliente) REFERENCES dbo.Clientes(IdCliente),
+    orden_id                INT IDENTITY(1,1) CONSTRAINT PK_OrdenesTrabajo PRIMARY KEY,
+    -- Número único y legible, calculado a partir del id: OT-000001
+    numero_orden            AS ('OT-' + RIGHT('000000' + CAST(orden_id AS VARCHAR(10)), 6)) PERSISTED,
+    cliente_id              INT           NOT NULL,
+    vehiculo_id             INT           NOT NULL,
+    fecha_ingreso           DATETIME2(0)  NOT NULL CONSTRAINT DF_Ordenes_FechaIngreso DEFAULT SYSDATETIME(),
+    kilometraje_ingreso     INT           NOT NULL,
+    sintomas                VARCHAR(500)  NOT NULL,
+    diagnostico_preliminar  VARCHAR(500)  NULL,
+    estado                  VARCHAR(25)   NOT NULL CONSTRAINT DF_Ordenes_Estado DEFAULT 'RECIBIDA'
+                                          CONSTRAINT FK_Ordenes_Estado REFERENCES dbo.EstadosOrden(codigo),
+    fecha_entrega           DATETIME2(0)  NULL,
+    activo                  BIT           NOT NULL CONSTRAINT DF_Ordenes_Activo DEFAULT 1,
+    fecha_registro          DATETIME2(0)  NOT NULL CONSTRAINT DF_Ordenes_Fecha  DEFAULT SYSDATETIME(),
+    CONSTRAINT UQ_Ordenes_Numero UNIQUE (numero_orden),
+    CONSTRAINT FK_Ordenes_Clientes FOREIGN KEY (cliente_id) REFERENCES dbo.Clientes(cliente_id),
     -- El vehículo debe pertenecer al cliente de la orden
-    CONSTRAINT FK_Ordenes_VehiculoCliente FOREIGN KEY (IdVehiculo, IdCliente) REFERENCES dbo.Vehiculos(IdVehiculo, IdCliente),
-    CONSTRAINT CK_Ordenes_Km        CHECK (KilometrajeIngreso >= 0),
-    CONSTRAINT CK_Ordenes_Sintomas  CHECK (LEN(LTRIM(Sintomas)) > 0),
-    CONSTRAINT CK_Ordenes_Entrega   CHECK (FechaEntrega IS NULL OR FechaEntrega >= FechaIngreso)
+    CONSTRAINT FK_Ordenes_VehiculoCliente FOREIGN KEY (vehiculo_id, cliente_id) REFERENCES dbo.Vehiculos(vehiculo_id, cliente_id),
+    CONSTRAINT CK_Ordenes_Km        CHECK (kilometraje_ingreso >= 0),
+    CONSTRAINT CK_Ordenes_Sintomas  CHECK (LEN(LTRIM(sintomas)) > 0),
+    CONSTRAINT CK_Ordenes_Entrega   CHECK (fecha_entrega IS NULL OR fecha_entrega >= fecha_ingreso)
 );
 GO
-CREATE INDEX IX_Ordenes_Vehiculo ON dbo.OrdenesTrabajo(IdVehiculo);
-CREATE INDEX IX_Ordenes_Estado   ON dbo.OrdenesTrabajo(Estado);
+CREATE INDEX IX_Ordenes_Vehiculo ON dbo.OrdenesTrabajo(vehiculo_id);
+CREATE INDEX IX_Ordenes_Estado   ON dbo.OrdenesTrabajo(estado);
 GO
 
--- Servicios por orden. PrecioUnitario guarda el precio del momento (histórico)
+-- Servicios por orden. precio_unitario guarda el precio del momento (histórico)
 CREATE TABLE dbo.DetalleOrden (
-    IdDetalle       INT IDENTITY(1,1) CONSTRAINT PK_DetalleOrden PRIMARY KEY,
-    IdOrden         INT           NOT NULL CONSTRAINT FK_DetalleOrden_Orden    REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    IdServicio      INT           NOT NULL CONSTRAINT FK_DetalleOrden_Servicio REFERENCES dbo.Servicios(IdServicio),
-    Cantidad        INT           NOT NULL CONSTRAINT DF_DetalleOrden_Cantidad DEFAULT 1,
-    PrecioUnitario  DECIMAL(12,2) NOT NULL,
-    Observacion     VARCHAR(200)  NULL,
-    CONSTRAINT UQ_DetalleOrden UNIQUE (IdOrden, IdServicio),
-    CONSTRAINT CK_DetalleOrden_Cantidad CHECK (Cantidad > 0),
-    CONSTRAINT CK_DetalleOrden_Precio   CHECK (PrecioUnitario >= 0)
+    detalle_id       INT IDENTITY(1,1) CONSTRAINT PK_DetalleOrden PRIMARY KEY,
+    orden_id         INT           NOT NULL CONSTRAINT FK_DetalleOrden_Orden    REFERENCES dbo.OrdenesTrabajo(orden_id),
+    servicio_id      INT           NOT NULL CONSTRAINT FK_DetalleOrden_Servicio REFERENCES dbo.Servicios(servicio_id),
+    cantidad         INT           NOT NULL CONSTRAINT DF_DetalleOrden_Cantidad DEFAULT 1,
+    precio_unitario  DECIMAL(12,2) NOT NULL,
+    observacion      VARCHAR(200)  NULL,
+    CONSTRAINT UQ_DetalleOrden UNIQUE (orden_id, servicio_id),
+    CONSTRAINT CK_DetalleOrden_Cantidad CHECK (cantidad > 0),
+    CONSTRAINT CK_DetalleOrden_Precio   CHECK (precio_unitario >= 0)
 );
 GO
 
 -- Tabla puente orden - mecánico. Solo un responsable principal por orden.
 CREATE TABLE dbo.AsignacionMecanicos (
-    IdOrden          INT          NOT NULL CONSTRAINT FK_Asignacion_Orden    REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    IdMecanico       INT          NOT NULL CONSTRAINT FK_Asignacion_Mecanico REFERENCES dbo.Mecanicos(IdMecanico),
-    EsResponsable    BIT          NOT NULL CONSTRAINT DF_Asignacion_Resp  DEFAULT 0,
-    FechaAsignacion  DATETIME2(0) NOT NULL CONSTRAINT DF_Asignacion_Fecha DEFAULT SYSDATETIME(),
-    CONSTRAINT PK_AsignacionMecanicos PRIMARY KEY (IdOrden, IdMecanico)
+    orden_id          INT          NOT NULL CONSTRAINT FK_Asignacion_Orden    REFERENCES dbo.OrdenesTrabajo(orden_id),
+    mecanico_id       INT          NOT NULL CONSTRAINT FK_Asignacion_Mecanico REFERENCES dbo.Mecanicos(mecanico_id),
+    es_responsable    BIT          NOT NULL CONSTRAINT DF_Asignacion_Resp  DEFAULT 0,
+    fecha_asignacion  DATETIME2(0) NOT NULL CONSTRAINT DF_Asignacion_Fecha DEFAULT SYSDATETIME(),
+    CONSTRAINT PK_AsignacionMecanicos PRIMARY KEY (orden_id, mecanico_id)
 );
 GO
-CREATE UNIQUE INDEX UX_Asignacion_UnResponsable ON dbo.AsignacionMecanicos(IdOrden) WHERE EsResponsable = 1;
+CREATE UNIQUE INDEX UX_Asignacion_UnResponsable ON dbo.AsignacionMecanicos(orden_id) WHERE es_responsable = 1;
 GO
 
 
@@ -331,132 +340,146 @@ GO
    7. DIAGNÓSTICO Y PRESUPUESTO (Módulo 6)
    ===================================================================== */
 CREATE TABLE dbo.Diagnosticos (
-    IdDiagnostico        INT IDENTITY(1,1) CONSTRAINT PK_Diagnosticos PRIMARY KEY,
-    IdOrden              INT           NOT NULL CONSTRAINT FK_Diagnosticos_Orden    REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    IdMecanico           INT           NOT NULL CONSTRAINT FK_Diagnosticos_Mecanico REFERENCES dbo.Mecanicos(IdMecanico),
-    Fecha                DATETIME2(0)  NOT NULL CONSTRAINT DF_Diagnosticos_Fecha DEFAULT SYSDATETIME(),
-    Descripcion          VARCHAR(1000) NOT NULL,
-    CausaRaiz            VARCHAR(500)  NULL,
-    Recomendacion        VARCHAR(500)  NULL,
-    RequiereCambioMotor  BIT           NOT NULL CONSTRAINT DF_Diagnosticos_Motor DEFAULT 0
+    diagnostico_id         INT IDENTITY(1,1) CONSTRAINT PK_Diagnosticos PRIMARY KEY,
+    orden_id               INT           NOT NULL CONSTRAINT FK_Diagnosticos_Orden    REFERENCES dbo.OrdenesTrabajo(orden_id),
+    mecanico_id            INT           NOT NULL CONSTRAINT FK_Diagnosticos_Mecanico REFERENCES dbo.Mecanicos(mecanico_id),
+    fecha                  DATETIME2(0)  NOT NULL CONSTRAINT DF_Diagnosticos_Fecha DEFAULT SYSDATETIME(),
+    descripcion            VARCHAR(1000) NOT NULL,
+    causa_raiz             VARCHAR(500)  NULL,
+    recomendacion          VARCHAR(500)  NULL,
+    requiere_cambio_motor  BIT           NOT NULL CONSTRAINT DF_Diagnosticos_Motor DEFAULT 0
 );
 GO
 
 CREATE TABLE dbo.EvidenciasTecnicas (
-    IdEvidencia    INT IDENTITY(1,1) CONSTRAINT PK_EvidenciasTecnicas PRIMARY KEY,
-    IdDiagnostico  INT           NOT NULL CONSTRAINT FK_Evidencias_Diagnostico REFERENCES dbo.Diagnosticos(IdDiagnostico),
-    Tipo           VARCHAR(40)   NOT NULL,   -- Compresión, Temperatura, Escáner, Fotografía...
-    Descripcion    VARCHAR(500)  NOT NULL,
-    ValorMedido    VARCHAR(100)  NULL,
-    RutaArchivo    VARCHAR(260)  NULL
+    evidencia_id    INT IDENTITY(1,1) CONSTRAINT PK_EvidenciasTecnicas PRIMARY KEY,
+    diagnostico_id  INT           NOT NULL CONSTRAINT FK_Evidencias_Diagnostico REFERENCES dbo.Diagnosticos(diagnostico_id),
+    tipo            VARCHAR(40)   NOT NULL,   -- Compresión, Temperatura, Escáner, Fotografía...
+    descripcion     VARCHAR(500)  NOT NULL,
+    valor_medido    VARCHAR(100)  NULL,
+    ruta_archivo    VARCHAR(260)  NULL
 );
 GO
 
 CREATE TABLE dbo.Presupuestos (
-    IdPresupuesto           INT IDENTITY(1,1) CONSTRAINT PK_Presupuestos PRIMARY KEY,
-    IdOrden                 INT           NOT NULL CONSTRAINT FK_Presupuestos_Orden    REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    Fecha                   DATETIME2(0)  NOT NULL CONSTRAINT DF_Presupuestos_Fecha DEFAULT SYSDATETIME(),
-    Subtotal                DECIMAL(12,2) NOT NULL CONSTRAINT DF_Presupuestos_Subtotal DEFAULT 0,
-    Descuento               DECIMAL(12,2) NOT NULL CONSTRAINT DF_Presupuestos_Desc     DEFAULT 0,
-    AutorizadoDescuentoPor  VARCHAR(80)   NULL,
-    IdImpuesto              INT           NULL CONSTRAINT FK_Presupuestos_Impuesto REFERENCES dbo.ConfiguracionImpuestos(IdImpuesto),
-    MontoImpuesto           DECIMAL(12,2) NOT NULL CONSTRAINT DF_Presupuestos_Imp      DEFAULT 0,
-    Total                   DECIMAL(12,2) NOT NULL CONSTRAINT DF_Presupuestos_Total    DEFAULT 0,
-    Estado                  VARCHAR(10)   NOT NULL CONSTRAINT DF_Presupuestos_Estado   DEFAULT 'PENDIENTE',
-    FechaRespuesta          DATETIME2(0)  NULL,
-    ObservacionCliente      VARCHAR(300)  NULL,
-    CONSTRAINT CK_Presupuestos_Montos   CHECK (Subtotal >= 0 AND Descuento >= 0 AND MontoImpuesto >= 0 AND Total >= 0),
-    CONSTRAINT CK_Presupuestos_Desc     CHECK (Descuento <= Subtotal),
+    presupuesto_id            INT IDENTITY(1,1) CONSTRAINT PK_Presupuestos PRIMARY KEY,
+    orden_id                  INT           NOT NULL CONSTRAINT FK_Presupuestos_Orden    REFERENCES dbo.OrdenesTrabajo(orden_id),
+    fecha                     DATETIME2(0)  NOT NULL CONSTRAINT DF_Presupuestos_Fecha DEFAULT SYSDATETIME(),
+    subtotal                  DECIMAL(12,2) NOT NULL CONSTRAINT DF_Presupuestos_Subtotal DEFAULT 0,
+    descuento                 DECIMAL(12,2) NOT NULL CONSTRAINT DF_Presupuestos_Desc     DEFAULT 0,
+    autorizado_descuento_por  VARCHAR(80)   NULL,
+    impuesto_id               INT           NULL CONSTRAINT FK_Presupuestos_Impuesto REFERENCES dbo.ConfiguracionImpuestos(impuesto_id),
+    monto_impuesto            DECIMAL(12,2) NOT NULL CONSTRAINT DF_Presupuestos_Imp      DEFAULT 0,
+    total                     DECIMAL(12,2) NOT NULL CONSTRAINT DF_Presupuestos_Total    DEFAULT 0,
+    estado                    VARCHAR(10)   NOT NULL CONSTRAINT DF_Presupuestos_Estado   DEFAULT 'PENDIENTE',
+    fecha_respuesta           DATETIME2(0)  NULL,
+    observacion_cliente       VARCHAR(300)  NULL,
+    CONSTRAINT CK_Presupuestos_Montos   CHECK (subtotal >= 0 AND descuento >= 0 AND monto_impuesto >= 0 AND total >= 0),
+    CONSTRAINT CK_Presupuestos_Desc     CHECK (descuento <= subtotal),
     -- Un descuento solo es válido si alguien lo autorizó
-    CONSTRAINT CK_Presupuestos_DescAut  CHECK (Descuento = 0 OR AutorizadoDescuentoPor IS NOT NULL),
-    CONSTRAINT CK_Presupuestos_Estado   CHECK (Estado IN ('PENDIENTE','APROBADO','RECHAZADO')),
-    CONSTRAINT CK_Presupuestos_Resp     CHECK (Estado = 'PENDIENTE' OR FechaRespuesta IS NOT NULL)
+    CONSTRAINT CK_Presupuestos_DescAut  CHECK (descuento = 0 OR autorizado_descuento_por IS NOT NULL),
+    CONSTRAINT CK_Presupuestos_Estado   CHECK (estado IN ('PENDIENTE','APROBADO','RECHAZADO')),
+    CONSTRAINT CK_Presupuestos_Resp     CHECK (estado = 'PENDIENTE' OR fecha_respuesta IS NOT NULL)
 );
 GO
 
 -- Desglose del presupuesto: mano de obra (servicio + horas) o repuestos
 CREATE TABLE dbo.DetallePresupuesto (
-    IdDetallePresupuesto  INT IDENTITY(1,1) CONSTRAINT PK_DetallePresupuesto PRIMARY KEY,
-    IdPresupuesto         INT           NOT NULL CONSTRAINT FK_DetPres_Presupuesto REFERENCES dbo.Presupuestos(IdPresupuesto),
-    TipoLinea             VARCHAR(10)   NOT NULL,
-    IdServicio            INT           NULL CONSTRAINT FK_DetPres_Servicio REFERENCES dbo.Servicios(IdServicio),
-    IdRepuesto            INT           NULL CONSTRAINT FK_DetPres_Repuesto REFERENCES dbo.Repuestos(IdRepuesto),
-    Descripcion           VARCHAR(200)  NOT NULL,
-    Horas                 DECIMAL(6,2)  NOT NULL CONSTRAINT DF_DetPres_Horas    DEFAULT 0,
-    Cantidad              INT           NOT NULL CONSTRAINT DF_DetPres_Cantidad DEFAULT 1,
-    PrecioUnitario        DECIMAL(12,2) NOT NULL,
-    CONSTRAINT CK_DetPres_Tipo     CHECK (TipoLinea IN ('MANO_OBRA','REPUESTO')),
-    CONSTRAINT CK_DetPres_Ref      CHECK ((TipoLinea = 'MANO_OBRA' AND IdServicio IS NOT NULL AND IdRepuesto IS NULL)
-                                       OR (TipoLinea = 'REPUESTO'  AND IdRepuesto IS NOT NULL AND IdServicio IS NULL)),
-    CONSTRAINT CK_DetPres_Valores  CHECK (Horas >= 0 AND Cantidad > 0 AND PrecioUnitario >= 0)
+    detalle_presupuesto_id  INT IDENTITY(1,1) CONSTRAINT PK_DetallePresupuesto PRIMARY KEY,
+    presupuesto_id          INT           NOT NULL CONSTRAINT FK_DetPres_Presupuesto REFERENCES dbo.Presupuestos(presupuesto_id),
+    tipo_linea              VARCHAR(10)   NOT NULL,
+    servicio_id             INT           NULL CONSTRAINT FK_DetPres_Servicio REFERENCES dbo.Servicios(servicio_id),
+    repuesto_id             INT           NULL CONSTRAINT FK_DetPres_Repuesto REFERENCES dbo.Repuestos(repuesto_id),
+    descripcion             VARCHAR(200)  NOT NULL,
+    horas                   DECIMAL(6,2)  NOT NULL CONSTRAINT DF_DetPres_Horas    DEFAULT 0,
+    cantidad                INT           NOT NULL CONSTRAINT DF_DetPres_Cantidad DEFAULT 1,
+    precio_unitario         DECIMAL(12,2) NOT NULL,
+    CONSTRAINT CK_DetPres_Tipo     CHECK (tipo_linea IN ('MANO_OBRA','REPUESTO')),
+    CONSTRAINT CK_DetPres_Ref      CHECK ((tipo_linea = 'MANO_OBRA' AND servicio_id IS NOT NULL AND repuesto_id IS NULL)
+                                       OR (tipo_linea = 'REPUESTO'  AND repuesto_id IS NOT NULL AND servicio_id IS NULL)),
+    CONSTRAINT CK_DetPres_Valores  CHECK (horas >= 0 AND cantidad > 0 AND precio_unitario >= 0)
 );
 GO
 
 
 /* =====================================================================
-   8. ACTIVIDADES, CONSUMOS, MOVIMIENTOS Y CONTROL DE CALIDAD
+   8. ACTIVIDADES, REPUESTOS POR ORDEN, MOVIMIENTOS Y CONTROL DE CALIDAD
    ===================================================================== */
 CREATE TABLE dbo.ActividadesTrabajo (
-    IdActividad    INT IDENTITY(1,1) CONSTRAINT PK_ActividadesTrabajo PRIMARY KEY,
-    IdOrden        INT           NOT NULL CONSTRAINT FK_Actividades_Orden    REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    IdMecanico     INT           NOT NULL CONSTRAINT FK_Actividades_Mecanico REFERENCES dbo.Mecanicos(IdMecanico),
-    Descripcion    VARCHAR(300)  NOT NULL,
-    Horas          DECIMAL(6,2)  NOT NULL CONSTRAINT DF_Actividades_Horas  DEFAULT 0,
-    Estado         VARCHAR(12)   NOT NULL CONSTRAINT DF_Actividades_Estado DEFAULT 'PENDIENTE',
-    Inicio         DATETIME2(0)  NULL,
-    Fin            DATETIME2(0)  NULL,
-    Observaciones  VARCHAR(300)  NULL,
-    CONSTRAINT CK_Actividades_Horas  CHECK (Horas >= 0),
-    CONSTRAINT CK_Actividades_Estado CHECK (Estado IN ('PENDIENTE','EN_PROCESO','COMPLETADA')),
-    CONSTRAINT CK_Actividades_Fechas CHECK (Fin IS NULL OR (Inicio IS NOT NULL AND Fin >= Inicio))
+    actividad_id   INT IDENTITY(1,1) CONSTRAINT PK_ActividadesTrabajo PRIMARY KEY,
+    orden_id       INT           NOT NULL CONSTRAINT FK_Actividades_Orden    REFERENCES dbo.OrdenesTrabajo(orden_id),
+    mecanico_id    INT           NOT NULL CONSTRAINT FK_Actividades_Mecanico REFERENCES dbo.Mecanicos(mecanico_id),
+    descripcion    VARCHAR(300)  NOT NULL,
+    horas          DECIMAL(6,2)  NOT NULL CONSTRAINT DF_Actividades_Horas  DEFAULT 0,
+    estado         VARCHAR(12)   NOT NULL CONSTRAINT DF_Actividades_Estado DEFAULT 'PENDIENTE',
+    inicio         DATETIME2(0)  NULL,
+    fin            DATETIME2(0)  NULL,
+    observaciones  VARCHAR(300)  NULL,
+    CONSTRAINT CK_Actividades_Horas  CHECK (horas >= 0),
+    CONSTRAINT CK_Actividades_Estado CHECK (estado IN ('PENDIENTE','EN_PROCESO','COMPLETADA')),
+    CONSTRAINT CK_Actividades_Fechas CHECK (fin IS NULL OR (inicio IS NOT NULL AND fin >= inicio))
 );
 GO
 
--- Tabla puente orden - repuesto (repuestos consumidos en la orden)
-CREATE TABLE dbo.ConsumoRepuestos (
-    IdConsumo               INT IDENTITY(1,1) CONSTRAINT PK_ConsumoRepuestos PRIMARY KEY,
-    IdOrden                 INT           NOT NULL CONSTRAINT FK_Consumo_Orden    REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    IdRepuesto              INT           NOT NULL CONSTRAINT FK_Consumo_Repuesto REFERENCES dbo.Repuestos(IdRepuesto),
-    Cantidad                INT           NOT NULL,
-    PrecioUnitario          DECIMAL(12,2) NOT NULL,
-    Fecha                   DATETIME2(0)  NOT NULL CONSTRAINT DF_Consumo_Fecha DEFAULT SYSDATETIME(),
-    RegistradoEnInventario  BIT           NOT NULL CONSTRAINT DF_Consumo_Reg   DEFAULT 0,
-    CONSTRAINT CK_Consumo_Cantidad CHECK (Cantidad > 0),
-    CONSTRAINT CK_Consumo_Precio   CHECK (PrecioUnitario >= 0)
+-- Tabla puente orden - repuesto (repuestos usados en la orden).
+-- Guarda nombre, costo y precio del momento (históricos). consumido = 1 cuando ya se descontó del inventario.
+CREATE TABLE dbo.RepuestosOrden (
+    repuesto_orden_id          INT IDENTITY(1,1) CONSTRAINT PK_RepuestosOrden PRIMARY KEY,
+    orden_id                   INT           NOT NULL CONSTRAINT FK_RepOrden_Orden    REFERENCES dbo.OrdenesTrabajo(orden_id),
+    repuesto_id                INT           NOT NULL CONSTRAINT FK_RepOrden_Repuesto REFERENCES dbo.Repuestos(repuesto_id),
+    nombre_historico           VARCHAR(100)  NOT NULL,
+    cantidad                   INT           NOT NULL,
+    costo_unitario_historico   DECIMAL(12,2) NOT NULL CONSTRAINT DF_RepOrden_Costo DEFAULT 0,
+    precio_unitario_historico  DECIMAL(12,2) NOT NULL,
+    consumido                  BIT           NOT NULL CONSTRAINT DF_RepOrden_Consumido DEFAULT 0,
+    fecha                      DATETIME2(0)  NOT NULL CONSTRAINT DF_RepOrden_Fecha DEFAULT SYSDATETIME(),
+    CONSTRAINT CK_RepOrden_Cantidad CHECK (cantidad > 0),
+    CONSTRAINT CK_RepOrden_Montos   CHECK (costo_unitario_historico >= 0 AND precio_unitario_historico >= 0)
 );
 GO
+CREATE INDEX IX_RepOrden_Orden ON dbo.RepuestosOrden(orden_id);
+GO
 
+-- Kardex: cada entrada, salida o ajuste con el stock antes y después
 CREATE TABLE dbo.MovimientosInventario (
-    IdMovimiento    INT IDENTITY(1,1) CONSTRAINT PK_MovimientosInventario PRIMARY KEY,
-    IdRepuesto      INT              NOT NULL CONSTRAINT FK_Movimientos_Repuesto REFERENCES dbo.Repuestos(IdRepuesto),
-    Tipo            VARCHAR(10)      NOT NULL,
-    Cantidad        INT              NOT NULL,
-    CostoUnitario   DECIMAL(12,2)    NOT NULL CONSTRAINT DF_Movimientos_Costo DEFAULT 0,
-    Fecha           DATETIME2(0)     NOT NULL CONSTRAINT DF_Movimientos_Fecha DEFAULT SYSDATETIME(),
-    Referencia      VARCHAR(100)     NULL,
-    IdOrden         INT              NULL CONSTRAINT FK_Movimientos_Orden REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    Usuario         VARCHAR(60)      NOT NULL CONSTRAINT DF_Movimientos_Usuario DEFAULT SUSER_SNAME(),
-    -- Clave única que envía Java por cada operación: si llega dos veces, no se descuenta dos veces
-    ClaveOperacion  UNIQUEIDENTIFIER NULL,
-    CONSTRAINT CK_Movimientos_Tipo     CHECK (Tipo IN ('ENTRADA','SALIDA','AJUSTE')),
-    CONSTRAINT CK_Movimientos_Cantidad CHECK ((Tipo IN ('ENTRADA','SALIDA') AND Cantidad > 0) OR (Tipo = 'AJUSTE' AND Cantidad <> 0)),
-    CONSTRAINT CK_Movimientos_Costo    CHECK (CostoUnitario >= 0)
+    movimiento_id     INT IDENTITY(1,1) CONSTRAINT PK_MovimientosInventario PRIMARY KEY,
+    repuesto_id       INT              NOT NULL CONSTRAINT FK_Movimientos_Repuesto REFERENCES dbo.Repuestos(repuesto_id),
+    orden_id          INT              NULL CONSTRAINT FK_Movimientos_Orden REFERENCES dbo.OrdenesTrabajo(orden_id),
+    tipo_movimiento   VARCHAR(15)      NOT NULL,
+    cantidad          INT              NOT NULL,
+    stock_anterior    INT              NOT NULL,
+    stock_resultante  INT              NOT NULL,
+    costo_unitario    DECIMAL(12,2)    NOT NULL CONSTRAINT DF_Movimientos_Costo DEFAULT 0,
+    motivo            VARCHAR(200)     NULL,
+    usuario_registro  VARCHAR(60)      NOT NULL CONSTRAINT DF_Movimientos_Usuario DEFAULT SUSER_SNAME(),
+    fecha_movimiento  DATETIME2(0)     NOT NULL CONSTRAINT DF_Movimientos_Fecha DEFAULT SYSDATETIME(),
+    -- Clave única opcional por operación: si llega dos veces, no se descuenta dos veces
+    clave_operacion   UNIQUEIDENTIFIER NULL,
+    CONSTRAINT CK_Movimientos_Tipo     CHECK (tipo_movimiento IN ('ENTRADA','SALIDA_ORDEN','AJUSTE')),
+    CONSTRAINT CK_Movimientos_Cantidad CHECK ((tipo_movimiento IN ('ENTRADA','SALIDA_ORDEN') AND cantidad > 0)
+                                           OR (tipo_movimiento = 'AJUSTE' AND cantidad >= 0)),
+    CONSTRAINT CK_Movimientos_Stock    CHECK (stock_anterior >= 0 AND stock_resultante >= 0),
+    -- El kardex debe cuadrar: entrada suma, salida resta
+    CONSTRAINT CK_Movimientos_Cuadre   CHECK ((tipo_movimiento = 'ENTRADA'      AND stock_resultante = stock_anterior + cantidad)
+                                           OR (tipo_movimiento = 'SALIDA_ORDEN' AND stock_resultante = stock_anterior - cantidad)
+                                           OR  tipo_movimiento = 'AJUSTE'),
+    CONSTRAINT CK_Movimientos_Costo    CHECK (costo_unitario >= 0)
 );
 GO
-CREATE UNIQUE INDEX UX_Movimientos_Clave ON dbo.MovimientosInventario(ClaveOperacion) WHERE ClaveOperacion IS NOT NULL;
-CREATE INDEX IX_Movimientos_Repuesto ON dbo.MovimientosInventario(IdRepuesto, Fecha);
+CREATE UNIQUE INDEX UX_Movimientos_Clave ON dbo.MovimientosInventario(clave_operacion) WHERE clave_operacion IS NOT NULL;
+CREATE INDEX IX_Movimientos_Repuesto ON dbo.MovimientosInventario(repuesto_id, fecha_movimiento);
 GO
 
 CREATE TABLE dbo.ControlesCalidad (
-    IdControl      INT IDENTITY(1,1) CONSTRAINT PK_ControlesCalidad PRIMARY KEY,
-    IdOrden        INT           NOT NULL CONSTRAINT FK_Controles_Orden     REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    IdInspector    INT           NOT NULL CONSTRAINT FK_Controles_Inspector REFERENCES dbo.Mecanicos(IdMecanico),
-    Fecha          DATETIME2(0)  NOT NULL CONSTRAINT DF_Controles_Fecha DEFAULT SYSDATETIME(),
-    Aprobado       BIT           NOT NULL,
-    Checklist      VARCHAR(1000) NULL,
-    Observaciones  VARCHAR(500)  NULL,
+    control_id     INT IDENTITY(1,1) CONSTRAINT PK_ControlesCalidad PRIMARY KEY,
+    orden_id       INT           NOT NULL CONSTRAINT FK_Controles_Orden     REFERENCES dbo.OrdenesTrabajo(orden_id),
+    inspector_id   INT           NOT NULL CONSTRAINT FK_Controles_Inspector REFERENCES dbo.Mecanicos(mecanico_id),
+    fecha          DATETIME2(0)  NOT NULL CONSTRAINT DF_Controles_Fecha DEFAULT SYSDATETIME(),
+    aprobado       BIT           NOT NULL,
+    checklist      VARCHAR(1000) NULL,
+    observaciones  VARCHAR(500)  NULL,
     -- Si se rechaza, se debe explicar por qué
-    CONSTRAINT CK_Controles_Obs CHECK (Aprobado = 1 OR Observaciones IS NOT NULL)
+    CONSTRAINT CK_Controles_Obs CHECK (aprobado = 1 OR observaciones IS NOT NULL)
 );
 GO
 
@@ -465,57 +488,57 @@ GO
    9. MOTORES Y CAMBIO DE MOTOR (Módulo 7)
    ===================================================================== */
 CREATE TABLE dbo.Motores (
-    IdMotor        INT IDENTITY(1,1) CONSTRAINT PK_Motores PRIMARY KEY,
-    NumeroSerie    VARCHAR(30)   NOT NULL CONSTRAINT UQ_Motores_Serie UNIQUE,
-    Marca          VARCHAR(40)   NOT NULL,
-    ModeloMotor    VARCHAR(40)   NOT NULL,
-    Cilindrada     VARCHAR(10)   NOT NULL,
-    Combustible    VARCHAR(15)   NOT NULL,
-    Estado         VARCHAR(12)   NOT NULL CONSTRAINT DF_Motores_Estado DEFAULT 'DISPONIBLE',
-    EsNuevo        BIT           NOT NULL CONSTRAINT DF_Motores_Nuevo  DEFAULT 1,
-    Costo          DECIMAL(12,2) NOT NULL CONSTRAINT DF_Motores_Costo  DEFAULT 0,
-    IdRepuesto     INT           NULL CONSTRAINT FK_Motores_Repuesto  REFERENCES dbo.Repuestos(IdRepuesto),
-    IdProveedor    INT           NULL CONSTRAINT FK_Motores_Proveedor REFERENCES dbo.Proveedores(IdProveedor),
-    Activo         BIT           NOT NULL CONSTRAINT DF_Motores_Activo DEFAULT 1,
-    FechaCreacion  DATETIME2(0)  NOT NULL CONSTRAINT DF_Motores_Fecha  DEFAULT SYSDATETIME(),
-    CONSTRAINT CK_Motores_Estado      CHECK (Estado IN ('DISPONIBLE','RESERVADO','INSTALADO','RETIRADO')),
-    CONSTRAINT CK_Motores_Combustible CHECK (Combustible IN ('GASOLINA','DIESEL','HIBRIDO','ELECTRICO','GLP')),
-    CONSTRAINT CK_Motores_Costo       CHECK (Costo >= 0)
+    motor_id        INT IDENTITY(1,1) CONSTRAINT PK_Motores PRIMARY KEY,
+    numero_serie    VARCHAR(30)   NOT NULL CONSTRAINT UQ_Motores_Serie UNIQUE,
+    marca           VARCHAR(40)   NOT NULL,
+    modelo_motor    VARCHAR(40)   NOT NULL,
+    cilindrada      VARCHAR(10)   NOT NULL,
+    combustible     VARCHAR(15)   NOT NULL,
+    estado          VARCHAR(12)   NOT NULL CONSTRAINT DF_Motores_Estado DEFAULT 'DISPONIBLE',
+    es_nuevo        BIT           NOT NULL CONSTRAINT DF_Motores_Nuevo  DEFAULT 1,
+    costo           DECIMAL(12,2) NOT NULL CONSTRAINT DF_Motores_Costo  DEFAULT 0,
+    repuesto_id     INT           NULL CONSTRAINT FK_Motores_Repuesto  REFERENCES dbo.Repuestos(repuesto_id),
+    proveedor_id    INT           NULL CONSTRAINT FK_Motores_Proveedor REFERENCES dbo.Proveedores(proveedor_id),
+    activo          BIT           NOT NULL CONSTRAINT DF_Motores_Activo DEFAULT 1,
+    fecha_registro  DATETIME2(0)  NOT NULL CONSTRAINT DF_Motores_Fecha  DEFAULT SYSDATETIME(),
+    CONSTRAINT CK_Motores_Estado      CHECK (estado IN ('DISPONIBLE','RESERVADO','INSTALADO','RETIRADO')),
+    CONSTRAINT CK_Motores_Combustible CHECK (combustible IN ('GASOLINA','DIESEL','HIBRIDO','ELECTRICO','GLP')),
+    CONSTRAINT CK_Motores_Costo       CHECK (costo >= 0)
 );
 GO
 
 -- Reglas de compatibilidad: el motor sirve para marca + modelo + rango de años
 CREATE TABLE dbo.CompatibilidadMotor (
-    IdCompatibilidad INT IDENTITY(1,1) CONSTRAINT PK_CompatibilidadMotor PRIMARY KEY,
-    IdMotor          INT          NOT NULL CONSTRAINT FK_Compat_Motor REFERENCES dbo.Motores(IdMotor),
-    Marca            VARCHAR(40)  NOT NULL,
-    Modelo           VARCHAR(40)  NOT NULL,
-    AnioDesde        SMALLINT     NOT NULL,
-    AnioHasta        SMALLINT     NOT NULL,
-    CONSTRAINT UQ_Compat UNIQUE (IdMotor, Marca, Modelo, AnioDesde),
-    CONSTRAINT CK_Compat_Anios CHECK (AnioDesde BETWEEN 1950 AND 2100 AND AnioHasta >= AnioDesde)
+    compatibilidad_id  INT IDENTITY(1,1) CONSTRAINT PK_CompatibilidadMotor PRIMARY KEY,
+    motor_id           INT          NOT NULL CONSTRAINT FK_Compat_Motor REFERENCES dbo.Motores(motor_id),
+    marca              VARCHAR(40)  NOT NULL,
+    modelo             VARCHAR(40)  NOT NULL,
+    anio_desde         SMALLINT     NOT NULL,
+    anio_hasta         SMALLINT     NOT NULL,
+    CONSTRAINT UQ_Compat UNIQUE (motor_id, marca, modelo, anio_desde),
+    CONSTRAINT CK_Compat_Anios CHECK (anio_desde BETWEEN 1950 AND 2100 AND anio_hasta >= anio_desde)
 );
 GO
 
 CREATE TABLE dbo.CambiosMotor (
-    IdCambioMotor         INT IDENTITY(1,1) CONSTRAINT PK_CambiosMotor PRIMARY KEY,
-    IdOrden               INT           NOT NULL CONSTRAINT FK_CambiosMotor_Orden    REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    IdVehiculo            INT           NOT NULL CONSTRAINT FK_CambiosMotor_Vehiculo REFERENCES dbo.Vehiculos(IdVehiculo),
-    SerieMotorAnterior    VARCHAR(30)   NOT NULL,
-    IdMotorNuevo          INT           NOT NULL CONSTRAINT FK_CambiosMotor_Motor    REFERENCES dbo.Motores(IdMotor),
-    DestinoMotorRetirado  VARCHAR(20)   NOT NULL,
-    FechaDesmontaje       DATETIME2(0)  NOT NULL,
-    FechaInstalacion      DATETIME2(0)  NOT NULL,
-    ResultadoPruebas      VARCHAR(1000) NOT NULL,
-    PruebasAprobadas      BIT           NOT NULL CONSTRAINT DF_CambiosMotor_Pruebas DEFAULT 0,
-    AutorizadoCliente     BIT           NOT NULL,
-    Observaciones         VARCHAR(500)  NULL,
-    CONSTRAINT UQ_CambiosMotor_Orden UNIQUE (IdOrden),
-    CONSTRAINT UQ_CambiosMotor_Motor UNIQUE (IdMotorNuevo),     -- un motor se instala una sola vez
-    CONSTRAINT CK_CambiosMotor_Destino CHECK (DestinoMotorRetirado IN ('DEVUELTO_CLIENTE','RECONSTRUCCION','CHATARRA','ALMACEN')),
-    CONSTRAINT CK_CambiosMotor_Fechas  CHECK (FechaInstalacion >= FechaDesmontaje),
-    CONSTRAINT CK_CambiosMotor_Serie   CHECK (LEN(LTRIM(SerieMotorAnterior)) > 0),
-    CONSTRAINT CK_CambiosMotor_Aut     CHECK (AutorizadoCliente = 1)  -- sin autorización no se registra
+    cambio_motor_id         INT IDENTITY(1,1) CONSTRAINT PK_CambiosMotor PRIMARY KEY,
+    orden_id                INT           NOT NULL CONSTRAINT FK_CambiosMotor_Orden    REFERENCES dbo.OrdenesTrabajo(orden_id),
+    vehiculo_id             INT           NOT NULL CONSTRAINT FK_CambiosMotor_Vehiculo REFERENCES dbo.Vehiculos(vehiculo_id),
+    serie_motor_anterior    VARCHAR(30)   NOT NULL,
+    motor_nuevo_id          INT           NOT NULL CONSTRAINT FK_CambiosMotor_Motor    REFERENCES dbo.Motores(motor_id),
+    destino_motor_retirado  VARCHAR(20)   NOT NULL,
+    fecha_desmontaje        DATETIME2(0)  NOT NULL,
+    fecha_instalacion       DATETIME2(0)  NOT NULL,
+    resultado_pruebas       VARCHAR(1000) NOT NULL,
+    pruebas_aprobadas       BIT           NOT NULL CONSTRAINT DF_CambiosMotor_Pruebas DEFAULT 0,
+    autorizado_cliente      BIT           NOT NULL,
+    observaciones           VARCHAR(500)  NULL,
+    CONSTRAINT UQ_CambiosMotor_Orden UNIQUE (orden_id),
+    CONSTRAINT UQ_CambiosMotor_Motor UNIQUE (motor_nuevo_id),     -- un motor se instala una sola vez
+    CONSTRAINT CK_CambiosMotor_Destino CHECK (destino_motor_retirado IN ('DEVUELTO_CLIENTE','RECONSTRUCCION','CHATARRA','ALMACEN')),
+    CONSTRAINT CK_CambiosMotor_Fechas  CHECK (fecha_instalacion >= fecha_desmontaje),
+    CONSTRAINT CK_CambiosMotor_Serie   CHECK (LEN(LTRIM(serie_motor_anterior)) > 0),
+    CONSTRAINT CK_CambiosMotor_Aut     CHECK (autorizado_cliente = 1)  -- sin autorización no se registra
 );
 GO
 
@@ -524,45 +547,45 @@ GO
    10. GARANTÍAS, PAGOS Y FACTURAS (Módulo 8)
    ===================================================================== */
 CREATE TABLE dbo.Garantias (
-    IdGarantia         INT IDENTITY(1,1) CONSTRAINT PK_Garantias PRIMARY KEY,
-    IdOrden            INT           NOT NULL CONSTRAINT FK_Garantias_Orden REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    Descripcion        VARCHAR(300)  NOT NULL,
-    FechaInicio        DATE          NOT NULL,
-    FechaFin           DATE          NOT NULL,
-    KilometrajeLimite  INT           NULL,
-    Condiciones        VARCHAR(1000) NULL,
-    CONSTRAINT UQ_Garantias_Orden UNIQUE (IdOrden),
-    CONSTRAINT CK_Garantias_Fechas CHECK (FechaFin > FechaInicio),
-    CONSTRAINT CK_Garantias_Km     CHECK (KilometrajeLimite IS NULL OR KilometrajeLimite > 0)
+    garantia_id         INT IDENTITY(1,1) CONSTRAINT PK_Garantias PRIMARY KEY,
+    orden_id            INT           NOT NULL CONSTRAINT FK_Garantias_Orden REFERENCES dbo.OrdenesTrabajo(orden_id),
+    descripcion         VARCHAR(300)  NOT NULL,
+    fecha_inicio        DATE          NOT NULL,
+    fecha_fin           DATE          NOT NULL,
+    kilometraje_limite  INT           NULL,
+    condiciones         VARCHAR(1000) NULL,
+    CONSTRAINT UQ_Garantias_Orden UNIQUE (orden_id),
+    CONSTRAINT CK_Garantias_Fechas CHECK (fecha_fin > fecha_inicio),
+    CONSTRAINT CK_Garantias_Km     CHECK (kilometraje_limite IS NULL OR kilometraje_limite > 0)
 );
 GO
 
 CREATE TABLE dbo.Pagos (
-    IdPago      INT IDENTITY(1,1) CONSTRAINT PK_Pagos PRIMARY KEY,
-    IdOrden     INT           NOT NULL CONSTRAINT FK_Pagos_Orden REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    Monto       DECIMAL(12,2) NOT NULL,
-    Metodo      VARCHAR(15)   NOT NULL,
-    Fecha       DATETIME2(0)  NOT NULL CONSTRAINT DF_Pagos_Fecha DEFAULT SYSDATETIME(),
-    Referencia  VARCHAR(60)   NULL,
-    CONSTRAINT CK_Pagos_Monto  CHECK (Monto > 0),
-    CONSTRAINT CK_Pagos_Metodo CHECK (Metodo IN ('EFECTIVO','TARJETA','TRANSFERENCIA'))
+    pago_id     INT IDENTITY(1,1) CONSTRAINT PK_Pagos PRIMARY KEY,
+    orden_id    INT           NOT NULL CONSTRAINT FK_Pagos_Orden REFERENCES dbo.OrdenesTrabajo(orden_id),
+    monto       DECIMAL(12,2) NOT NULL,
+    metodo      VARCHAR(15)   NOT NULL,
+    fecha       DATETIME2(0)  NOT NULL CONSTRAINT DF_Pagos_Fecha DEFAULT SYSDATETIME(),
+    referencia  VARCHAR(60)   NULL,
+    CONSTRAINT CK_Pagos_Monto  CHECK (monto > 0),
+    CONSTRAINT CK_Pagos_Metodo CHECK (metodo IN ('EFECTIVO','TARJETA','TRANSFERENCIA'))
 );
 GO
-CREATE INDEX IX_Pagos_Orden ON dbo.Pagos(IdOrden);
+CREATE INDEX IX_Pagos_Orden ON dbo.Pagos(orden_id);
 GO
 
 CREATE TABLE dbo.Facturas (
-    IdFactura  INT IDENTITY(1,1) CONSTRAINT PK_Facturas PRIMARY KEY,
-    Numero     AS ('FAC-' + RIGHT('000000' + CAST(IdFactura AS VARCHAR(10)), 6)) PERSISTED,
-    IdOrden    INT           NOT NULL CONSTRAINT FK_Facturas_Orden REFERENCES dbo.OrdenesTrabajo(IdOrden),
-    Fecha      DATETIME2(0)  NOT NULL CONSTRAINT DF_Facturas_Fecha DEFAULT SYSDATETIME(),
-    Subtotal   DECIMAL(12,2) NOT NULL,
-    Descuento  DECIMAL(12,2) NOT NULL,
-    Impuesto   DECIMAL(12,2) NOT NULL,
-    Total      DECIMAL(12,2) NOT NULL,
-    CONSTRAINT UQ_Facturas_Numero UNIQUE (Numero),
-    CONSTRAINT UQ_Facturas_Orden  UNIQUE (IdOrden),           -- una factura por orden
-    CONSTRAINT CK_Facturas_Montos CHECK (Subtotal >= 0 AND Descuento >= 0 AND Impuesto >= 0 AND Total >= 0)
+    factura_id      INT IDENTITY(1,1) CONSTRAINT PK_Facturas PRIMARY KEY,
+    numero_factura  AS ('FAC-' + RIGHT('000000' + CAST(factura_id AS VARCHAR(10)), 6)) PERSISTED,
+    orden_id        INT           NOT NULL CONSTRAINT FK_Facturas_Orden REFERENCES dbo.OrdenesTrabajo(orden_id),
+    fecha_emision   DATETIME2(0)  NOT NULL CONSTRAINT DF_Facturas_Fecha DEFAULT SYSDATETIME(),
+    subtotal        DECIMAL(12,2) NOT NULL,
+    descuento       DECIMAL(12,2) NOT NULL,
+    impuesto        DECIMAL(12,2) NOT NULL,
+    total           DECIMAL(12,2) NOT NULL,
+    CONSTRAINT UQ_Facturas_Numero UNIQUE (numero_factura),
+    CONSTRAINT UQ_Facturas_Orden  UNIQUE (orden_id),           -- una factura por orden
+    CONSTRAINT CK_Facturas_Montos CHECK (subtotal >= 0 AND descuento >= 0 AND impuesto >= 0 AND total >= 0)
 );
 GO
 
@@ -571,15 +594,15 @@ GO
    11. AUDITORÍA
    ===================================================================== */
 CREATE TABLE dbo.Auditoria (
-    IdAuditoria    BIGINT IDENTITY(1,1) CONSTRAINT PK_Auditoria PRIMARY KEY,
-    Tabla          VARCHAR(50)   NOT NULL,
-    Operacion      VARCHAR(10)   NOT NULL,
-    IdRegistro     INT           NOT NULL,
-    Campo          VARCHAR(50)   NOT NULL,
-    ValorAnterior  VARCHAR(200)  NULL,
-    ValorNuevo     VARCHAR(200)  NULL,
-    Usuario        VARCHAR(60)   NOT NULL CONSTRAINT DF_Auditoria_Usuario DEFAULT SUSER_SNAME(),
-    Fecha          DATETIME2(0)  NOT NULL CONSTRAINT DF_Auditoria_Fecha   DEFAULT SYSDATETIME()
+    auditoria_id    BIGINT IDENTITY(1,1) CONSTRAINT PK_Auditoria PRIMARY KEY,
+    tabla           VARCHAR(50)   NOT NULL,
+    operacion       VARCHAR(10)   NOT NULL,
+    registro_id     INT           NOT NULL,
+    campo           VARCHAR(50)   NOT NULL,
+    valor_anterior  VARCHAR(200)  NULL,
+    valor_nuevo     VARCHAR(200)  NULL,
+    usuario         VARCHAR(60)   NOT NULL CONSTRAINT DF_Auditoria_Usuario DEFAULT SUSER_SNAME(),
+    fecha           DATETIME2(0)  NOT NULL CONSTRAINT DF_Auditoria_Fecha   DEFAULT SYSDATETIME()
 );
 GO
 
@@ -590,70 +613,71 @@ GO
 
 -- Totales de una orden: servicios + repuestos - descuento + impuesto, pagado y saldo.
 -- El total no se guarda en la tabla (es un dato derivado); se calcula aquí.
-CREATE OR ALTER FUNCTION dbo.fn_TotalesOrden (@IdOrden INT)
+CREATE OR ALTER FUNCTION dbo.fn_TotalesOrden (@orden_id INT)
 RETURNS TABLE
 AS
 RETURN
 WITH Base AS (
     SELECT
-        ISNULL((SELECT SUM(d.Cantidad * d.PrecioUnitario) FROM dbo.DetalleOrden d WHERE d.IdOrden = @IdOrden), 0)      AS TotalServicios,
-        ISNULL((SELECT SUM(c.Cantidad * c.PrecioUnitario) FROM dbo.ConsumoRepuestos c WHERE c.IdOrden = @IdOrden), 0)  AS TotalRepuestos,
-        ISNULL((SELECT TOP 1 p.Descuento FROM dbo.Presupuestos p
-                WHERE p.IdOrden = @IdOrden AND p.Estado = 'APROBADO' ORDER BY p.FechaRespuesta DESC), 0)               AS Descuento,
-        COALESCE((SELECT TOP 1 i.Porcentaje FROM dbo.Presupuestos p
-                  INNER JOIN dbo.ConfiguracionImpuestos i ON i.IdImpuesto = p.IdImpuesto
-                  WHERE p.IdOrden = @IdOrden AND p.Estado = 'APROBADO' ORDER BY p.FechaRespuesta DESC),
-                 (SELECT TOP 1 i.Porcentaje FROM dbo.ConfiguracionImpuestos i WHERE i.Activo = 1 AND i.EsPredeterminado = 1),
-                 0)                                                                                                    AS PorcentajeImpuesto,
-        ISNULL((SELECT SUM(pg.Monto) FROM dbo.Pagos pg WHERE pg.IdOrden = @IdOrden), 0)                                AS TotalPagado
+        ISNULL((SELECT SUM(d.cantidad * d.precio_unitario) FROM dbo.DetalleOrden d WHERE d.orden_id = @orden_id), 0)  AS total_servicios,
+        ISNULL((SELECT SUM(r.cantidad * r.precio_unitario_historico) FROM dbo.RepuestosOrden r
+                WHERE r.orden_id = @orden_id AND r.consumido = 1), 0)                                                 AS total_repuestos,
+        ISNULL((SELECT TOP 1 p.descuento FROM dbo.Presupuestos p
+                WHERE p.orden_id = @orden_id AND p.estado = 'APROBADO' ORDER BY p.fecha_respuesta DESC), 0)           AS descuento,
+        COALESCE((SELECT TOP 1 i.porcentaje FROM dbo.Presupuestos p
+                  INNER JOIN dbo.ConfiguracionImpuestos i ON i.impuesto_id = p.impuesto_id
+                  WHERE p.orden_id = @orden_id AND p.estado = 'APROBADO' ORDER BY p.fecha_respuesta DESC),
+                 (SELECT TOP 1 i.porcentaje FROM dbo.ConfiguracionImpuestos i WHERE i.activo = 1 AND i.es_predeterminado = 1),
+                 0)                                                                                                   AS porcentaje_impuesto,
+        ISNULL((SELECT SUM(pg.monto) FROM dbo.Pagos pg WHERE pg.orden_id = @orden_id), 0)                             AS total_pagado
 ),
 Calculo AS (
     SELECT *,
-           CAST(CASE WHEN TotalServicios + TotalRepuestos - Descuento < 0 THEN 0
-                     ELSE TotalServicios + TotalRepuestos - Descuento END AS DECIMAL(12,2)) AS BaseImponible
+           CAST(CASE WHEN total_servicios + total_repuestos - descuento < 0 THEN 0
+                     ELSE total_servicios + total_repuestos - descuento END AS DECIMAL(12,2)) AS base_imponible
     FROM Base
 )
 SELECT
-    CAST(TotalServicios AS DECIMAL(12,2))                                               AS TotalServicios,
-    CAST(TotalRepuestos AS DECIMAL(12,2))                                               AS TotalRepuestos,
-    CAST(Descuento AS DECIMAL(12,2))                                                    AS Descuento,
-    BaseImponible,
-    CAST(PorcentajeImpuesto AS DECIMAL(5,2))                                            AS PorcentajeImpuesto,
-    CAST(ROUND(BaseImponible * PorcentajeImpuesto / 100, 2) AS DECIMAL(12,2))           AS Impuesto,
-    CAST(BaseImponible + ROUND(BaseImponible * PorcentajeImpuesto / 100, 2) AS DECIMAL(12,2))               AS Total,
-    CAST(TotalPagado AS DECIMAL(12,2))                                                  AS TotalPagado,
-    CAST(BaseImponible + ROUND(BaseImponible * PorcentajeImpuesto / 100, 2) - TotalPagado AS DECIMAL(12,2)) AS Saldo
+    CAST(total_servicios AS DECIMAL(12,2))                                                         AS total_servicios,
+    CAST(total_repuestos AS DECIMAL(12,2))                                                         AS total_repuestos,
+    CAST(descuento AS DECIMAL(12,2))                                                               AS descuento,
+    base_imponible,
+    CAST(porcentaje_impuesto AS DECIMAL(5,2))                                                      AS porcentaje_impuesto,
+    CAST(ROUND(base_imponible * porcentaje_impuesto / 100, 2) AS DECIMAL(12,2))                    AS impuesto,
+    CAST(base_imponible + ROUND(base_imponible * porcentaje_impuesto / 100, 2) AS DECIMAL(12,2))   AS total,
+    CAST(total_pagado AS DECIMAL(12,2))                                                            AS total_pagado,
+    CAST(base_imponible + ROUND(base_imponible * porcentaje_impuesto / 100, 2) - total_pagado AS DECIMAL(12,2)) AS saldo
 FROM Calculo;
 GO
 
 -- Devuelve 1 si el motor es compatible con el vehículo (marca, modelo, año y combustible)
-CREATE OR ALTER FUNCTION dbo.fn_MotorCompatible (@IdMotor INT, @IdVehiculo INT)
+CREATE OR ALTER FUNCTION dbo.fn_MotorCompatible (@motor_id INT, @vehiculo_id INT)
 RETURNS BIT
 AS
 BEGIN
-    DECLARE @Resultado BIT = 0;
+    DECLARE @resultado BIT = 0;
     IF EXISTS (
         SELECT 1
         FROM dbo.Motores m
-        INNER JOIN dbo.CompatibilidadMotor c ON c.IdMotor = m.IdMotor
-        INNER JOIN dbo.Vehiculos v           ON v.IdVehiculo = @IdVehiculo
-        WHERE m.IdMotor = @IdMotor
-          AND c.Marca = v.Marca
-          AND c.Modelo = v.Modelo
-          AND v.Anio BETWEEN c.AnioDesde AND c.AnioHasta
-          AND m.Combustible = v.Combustible
+        INNER JOIN dbo.CompatibilidadMotor c ON c.motor_id = m.motor_id
+        INNER JOIN dbo.Vehiculos v           ON v.vehiculo_id = @vehiculo_id
+        WHERE m.motor_id = @motor_id
+          AND c.marca = v.marca
+          AND c.modelo = v.modelo
+          AND v.anio BETWEEN c.anio_desde AND c.anio_hasta
+          AND m.combustible = v.combustible
     )
-        SET @Resultado = 1;
-    RETURN @Resultado;
+        SET @resultado = 1;
+    RETURN @resultado;
 END;
 GO
 
 
 /* =====================================================================
-   13. TRIGGERS DE AUDITORÍA
+   13. TRIGGERS
    ===================================================================== */
 
--- Registra cada cambio de stock, costo o precio de un repuesto
+-- Auditoría: cada cambio de stock, costo o precio de un repuesto
 CREATE OR ALTER TRIGGER dbo.trg_Repuestos_Auditoria
 ON dbo.Repuestos
 AFTER UPDATE
@@ -661,56 +685,56 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    INSERT INTO dbo.Auditoria (Tabla, Operacion, IdRegistro, Campo, ValorAnterior, ValorNuevo)
-    SELECT 'Repuestos', 'UPDATE', i.IdRepuesto, 'Stock', CAST(d.Stock AS VARCHAR(20)), CAST(i.Stock AS VARCHAR(20))
-    FROM inserted i INNER JOIN deleted d ON d.IdRepuesto = i.IdRepuesto
-    WHERE i.Stock <> d.Stock;
+    INSERT INTO dbo.Auditoria (tabla, operacion, registro_id, campo, valor_anterior, valor_nuevo)
+    SELECT 'Repuestos', 'UPDATE', i.repuesto_id, 'stock_actual', CAST(d.stock_actual AS VARCHAR(20)), CAST(i.stock_actual AS VARCHAR(20))
+    FROM inserted i INNER JOIN deleted d ON d.repuesto_id = i.repuesto_id
+    WHERE i.stock_actual <> d.stock_actual;
 
-    INSERT INTO dbo.Auditoria (Tabla, Operacion, IdRegistro, Campo, ValorAnterior, ValorNuevo)
-    SELECT 'Repuestos', 'UPDATE', i.IdRepuesto, 'PrecioVenta', CAST(d.PrecioVenta AS VARCHAR(20)), CAST(i.PrecioVenta AS VARCHAR(20))
-    FROM inserted i INNER JOIN deleted d ON d.IdRepuesto = i.IdRepuesto
-    WHERE i.PrecioVenta <> d.PrecioVenta;
+    INSERT INTO dbo.Auditoria (tabla, operacion, registro_id, campo, valor_anterior, valor_nuevo)
+    SELECT 'Repuestos', 'UPDATE', i.repuesto_id, 'precio_venta', CAST(d.precio_venta AS VARCHAR(20)), CAST(i.precio_venta AS VARCHAR(20))
+    FROM inserted i INNER JOIN deleted d ON d.repuesto_id = i.repuesto_id
+    WHERE i.precio_venta <> d.precio_venta;
 
-    INSERT INTO dbo.Auditoria (Tabla, Operacion, IdRegistro, Campo, ValorAnterior, ValorNuevo)
-    SELECT 'Repuestos', 'UPDATE', i.IdRepuesto, 'CostoUnitario', CAST(d.CostoUnitario AS VARCHAR(20)), CAST(i.CostoUnitario AS VARCHAR(20))
-    FROM inserted i INNER JOIN deleted d ON d.IdRepuesto = i.IdRepuesto
-    WHERE i.CostoUnitario <> d.CostoUnitario;
+    INSERT INTO dbo.Auditoria (tabla, operacion, registro_id, campo, valor_anterior, valor_nuevo)
+    SELECT 'Repuestos', 'UPDATE', i.repuesto_id, 'costo_compra', CAST(d.costo_compra AS VARCHAR(20)), CAST(i.costo_compra AS VARCHAR(20))
+    FROM inserted i INNER JOIN deleted d ON d.repuesto_id = i.repuesto_id
+    WHERE i.costo_compra <> d.costo_compra;
 END;
 GO
 
--- Registra cada cambio de estado de una orden de trabajo
+-- Auditoría: cada cambio de estado de una orden de trabajo
 CREATE OR ALTER TRIGGER dbo.trg_OrdenesTrabajo_AuditoriaEstado
 ON dbo.OrdenesTrabajo
 AFTER UPDATE
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF NOT UPDATE(Estado) RETURN;
+    IF NOT UPDATE(estado) RETURN;
 
-    INSERT INTO dbo.Auditoria (Tabla, Operacion, IdRegistro, Campo, ValorAnterior, ValorNuevo)
-    SELECT 'OrdenesTrabajo', 'UPDATE', i.IdOrden, 'Estado', d.Estado, i.Estado
-    FROM inserted i INNER JOIN deleted d ON d.IdOrden = i.IdOrden
-    WHERE i.Estado <> d.Estado;
+    INSERT INTO dbo.Auditoria (tabla, operacion, registro_id, campo, valor_anterior, valor_nuevo)
+    SELECT 'OrdenesTrabajo', 'UPDATE', i.orden_id, 'estado', d.estado, i.estado
+    FROM inserted i INNER JOIN deleted d ON d.orden_id = i.orden_id
+    WHERE i.estado <> d.estado;
 END;
 GO
 
--- Registra los cambios de precio del catálogo (los importes de órdenes viejas no cambian)
+-- Auditoría: cambios de precio del catálogo (los importes de órdenes viejas no cambian)
 CREATE OR ALTER TRIGGER dbo.trg_Servicios_AuditoriaPrecio
 ON dbo.Servicios
 AFTER UPDATE
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF NOT UPDATE(CostoManoObra) RETURN;
+    IF NOT UPDATE(costo_mano_obra) RETURN;
 
-    INSERT INTO dbo.Auditoria (Tabla, Operacion, IdRegistro, Campo, ValorAnterior, ValorNuevo)
-    SELECT 'Servicios', 'UPDATE', i.IdServicio, 'CostoManoObra', CAST(d.CostoManoObra AS VARCHAR(20)), CAST(i.CostoManoObra AS VARCHAR(20))
-    FROM inserted i INNER JOIN deleted d ON d.IdServicio = i.IdServicio
-    WHERE i.CostoManoObra <> d.CostoManoObra;
+    INSERT INTO dbo.Auditoria (tabla, operacion, registro_id, campo, valor_anterior, valor_nuevo)
+    SELECT 'Servicios', 'UPDATE', i.servicio_id, 'costo_mano_obra', CAST(d.costo_mano_obra AS VARCHAR(20)), CAST(i.costo_mano_obra AS VARCHAR(20))
+    FROM inserted i INNER JOIN deleted d ON d.servicio_id = i.servicio_id
+    WHERE i.costo_mano_obra <> d.costo_mano_obra;
 END;
 GO
 
--- Las órdenes finalizadas o entregadas no se pueden modificar en sus servicios (precios históricos)
+-- Las órdenes cerradas no se pueden modificar en sus servicios ni repuestos (importes históricos)
 CREATE OR ALTER TRIGGER dbo.trg_DetalleOrden_Bloqueo
 ON dbo.DetalleOrden
 AFTER INSERT, UPDATE, DELETE
@@ -719,11 +743,28 @@ BEGIN
     SET NOCOUNT ON;
     IF EXISTS (
         SELECT 1 FROM dbo.OrdenesTrabajo o
-        WHERE o.IdOrden IN (SELECT IdOrden FROM inserted UNION SELECT IdOrden FROM deleted)
-          AND o.Estado IN ('FINALIZADA','ENTREGADA','RECHAZADA','CANCELADA')
+        WHERE o.orden_id IN (SELECT orden_id FROM inserted UNION SELECT orden_id FROM deleted)
+          AND o.estado IN ('FINALIZADA','ENTREGADA','RECHAZADA','CANCELADA')
     )
     BEGIN
         THROW 50020, 'No se pueden modificar los servicios de una orden cerrada.', 1;
+    END
+END;
+GO
+
+CREATE OR ALTER TRIGGER dbo.trg_RepuestosOrden_Bloqueo
+ON dbo.RepuestosOrden
+AFTER INSERT, UPDATE, DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF EXISTS (
+        SELECT 1 FROM dbo.OrdenesTrabajo o
+        WHERE o.orden_id IN (SELECT orden_id FROM inserted UNION SELECT orden_id FROM deleted)
+          AND o.estado IN ('FINALIZADA','ENTREGADA','RECHAZADA','CANCELADA')
+    )
+    BEGIN
+        THROW 50021, 'No se pueden agregar ni modificar repuestos de una orden cerrada.', 1;
     END
 END;
 GO
@@ -733,74 +774,80 @@ GO
    14. PROCEDIMIENTOS ALMACENADOS
    Todos usan transacciones: si algo falla, se revierte todo (ROLLBACK).
    Los errores de negocio se lanzan con THROW 5xxxx y Java los recibe como
-   SQLException con el mensaje en español.
+   SQLException (getErrorCode() = número) con el mensaje en español.
    ===================================================================== */
 
 -- 14.1 Consumir un repuesto en una orden (descuento atómico de inventario)
 --      Control de concurrencia:
---        * el UPDATE descuenta solo si hay stock suficiente (WHERE Stock >= @Cantidad),
+--        * el UPDATE descuenta solo si hay stock suficiente (WHERE stock_actual >= @cantidad),
 --          así dos hilos nunca dejan el stock negativo;
---        * @ClaveOperacion evita descontar dos veces la misma operación
+--        * @clave_operacion evita descontar dos veces la misma operación
 --          (doble clic o reintento): la segunda vez no hace nada.
 CREATE OR ALTER PROCEDURE dbo.sp_ConsumirRepuesto
-    @IdOrden         INT,
-    @IdRepuesto      INT,
-    @Cantidad        INT,
-    @ClaveOperacion  UNIQUEIDENTIFIER = NULL,
-    @IdConsumo       INT = NULL OUTPUT
+    @orden_id          INT,
+    @repuesto_id       INT,
+    @cantidad          INT,
+    @usuario           VARCHAR(60) = NULL,
+    @clave_operacion   UNIQUEIDENTIFIER = NULL,
+    @repuesto_orden_id INT = NULL OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    IF @Cantidad IS NULL OR @Cantidad <= 0
+    IF @cantidad IS NULL OR @cantidad <= 0
         THROW 50001, 'La cantidad a consumir debe ser mayor que cero.', 1;
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
         -- Operación ya procesada: no se repite el descuento
-        IF @ClaveOperacion IS NOT NULL AND EXISTS (
-            SELECT 1 FROM dbo.MovimientosInventario WITH (UPDLOCK, HOLDLOCK) WHERE ClaveOperacion = @ClaveOperacion)
+        IF @clave_operacion IS NOT NULL AND EXISTS (
+            SELECT 1 FROM dbo.MovimientosInventario WITH (UPDLOCK, HOLDLOCK) WHERE clave_operacion = @clave_operacion)
         BEGIN
-            SELECT @IdConsumo = NULL;
+            SET @repuesto_orden_id = NULL;
             COMMIT TRANSACTION;
             RETURN 1;   -- 1 = ya existía
         END
 
-        DECLARE @Estado VARCHAR(25);
-        SELECT @Estado = Estado FROM dbo.OrdenesTrabajo WITH (UPDLOCK) WHERE IdOrden = @IdOrden AND Activo = 1;
-        IF @Estado IS NULL
+        DECLARE @estado VARCHAR(25);
+        SELECT @estado = estado FROM dbo.OrdenesTrabajo WITH (UPDLOCK) WHERE orden_id = @orden_id AND activo = 1;
+        IF @estado IS NULL
             THROW 50002, 'La orden no existe o está inactiva.', 1;
-        IF @Estado NOT IN ('EN_DIAGNOSTICO','EN_REPARACION')
+        IF @estado NOT IN ('EN_DIAGNOSTICO','EN_REPARACION')
             THROW 50003, 'Solo se pueden consumir repuestos en órdenes en diagnóstico o en reparación.', 1;
 
-        DECLARE @Precio DECIMAL(12,2), @Costo DECIMAL(12,2);
+        DECLARE @stock_anterior INT, @precio DECIMAL(12,2), @costo DECIMAL(12,2), @nombre VARCHAR(100);
 
         UPDATE dbo.Repuestos
-        SET Stock = Stock - @Cantidad,
-            @Precio = PrecioVenta,
-            @Costo  = CostoUnitario
-        WHERE IdRepuesto = @IdRepuesto
-          AND Activo = 1
-          AND Stock >= @Cantidad;
+        SET stock_actual    = stock_actual - @cantidad,
+            @stock_anterior = stock_actual,        -- valor antes del descuento
+            @precio         = precio_venta,
+            @costo          = costo_compra,
+            @nombre         = nombre
+        WHERE repuesto_id = @repuesto_id
+          AND activo = 1
+          AND stock_actual >= @cantidad;
 
         IF @@ROWCOUNT = 0
         BEGIN
-            IF NOT EXISTS (SELECT 1 FROM dbo.Repuestos WHERE IdRepuesto = @IdRepuesto AND Activo = 1)
+            IF NOT EXISTS (SELECT 1 FROM dbo.Repuestos WHERE repuesto_id = @repuesto_id AND activo = 1)
                 THROW 50004, 'El repuesto no existe o está inactivo.', 1;
             ELSE
                 THROW 50005, 'Stock insuficiente para el repuesto solicitado.', 1;
         END
 
-        INSERT INTO dbo.MovimientosInventario (IdRepuesto, Tipo, Cantidad, CostoUnitario, Referencia, IdOrden, ClaveOperacion)
-        VALUES (@IdRepuesto, 'SALIDA', @Cantidad, @Costo,
-                CONCAT('Consumo orden OT-', RIGHT('000000' + CAST(@IdOrden AS VARCHAR(10)), 6)), @IdOrden, @ClaveOperacion);
+        INSERT INTO dbo.MovimientosInventario (repuesto_id, orden_id, tipo_movimiento, cantidad, stock_anterior,
+                                               stock_resultante, costo_unitario, motivo, usuario_registro, clave_operacion)
+        VALUES (@repuesto_id, @orden_id, 'SALIDA_ORDEN', @cantidad, @stock_anterior, @stock_anterior - @cantidad, @costo,
+                CONCAT('Consumo en orden OT-', RIGHT('000000' + CAST(@orden_id AS VARCHAR(10)), 6)),
+                ISNULL(@usuario, SUSER_SNAME()), @clave_operacion);
 
-        INSERT INTO dbo.ConsumoRepuestos (IdOrden, IdRepuesto, Cantidad, PrecioUnitario, RegistradoEnInventario)
-        VALUES (@IdOrden, @IdRepuesto, @Cantidad, @Precio, 1);
+        INSERT INTO dbo.RepuestosOrden (orden_id, repuesto_id, nombre_historico, cantidad,
+                                        costo_unitario_historico, precio_unitario_historico, consumido)
+        VALUES (@orden_id, @repuesto_id, @nombre, @cantidad, @costo, @precio, 1);
 
-        SET @IdConsumo = SCOPE_IDENTITY();
+        SET @repuesto_orden_id = SCOPE_IDENTITY();
 
         COMMIT TRANSACTION;
         RETURN 0;
@@ -814,33 +861,39 @@ GO
 
 -- 14.2 Entrada de inventario (compra a proveedor)
 CREATE OR ALTER PROCEDURE dbo.sp_RegistrarEntradaInventario
-    @IdRepuesto     INT,
-    @Cantidad       INT,
-    @CostoUnitario  DECIMAL(12,2),
-    @Referencia     VARCHAR(100) = NULL
+    @repuesto_id    INT,
+    @cantidad       INT,
+    @costo_compra   DECIMAL(12,2),
+    @motivo         VARCHAR(200) = NULL,
+    @usuario        VARCHAR(60) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    IF @Cantidad IS NULL OR @Cantidad <= 0
+    IF @cantidad IS NULL OR @cantidad <= 0
         THROW 50010, 'La cantidad de la entrada debe ser mayor que cero.', 1;
-    IF @CostoUnitario IS NULL OR @CostoUnitario < 0
-        THROW 50011, 'El costo unitario no puede ser negativo.', 1;
+    IF @costo_compra IS NULL OR @costo_compra < 0
+        THROW 50011, 'El costo de compra no puede ser negativo.', 1;
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        DECLARE @stock_anterior INT;
+
         UPDATE dbo.Repuestos
-        SET Stock = Stock + @Cantidad,
-            CostoUnitario = @CostoUnitario
-        WHERE IdRepuesto = @IdRepuesto AND Activo = 1;
+        SET stock_actual    = stock_actual + @cantidad,
+            @stock_anterior = stock_actual,
+            costo_compra    = @costo_compra
+        WHERE repuesto_id = @repuesto_id AND activo = 1;
 
         IF @@ROWCOUNT = 0
             THROW 50004, 'El repuesto no existe o está inactivo.', 1;
 
-        INSERT INTO dbo.MovimientosInventario (IdRepuesto, Tipo, Cantidad, CostoUnitario, Referencia)
-        VALUES (@IdRepuesto, 'ENTRADA', @Cantidad, @CostoUnitario, @Referencia);
+        INSERT INTO dbo.MovimientosInventario (repuesto_id, tipo_movimiento, cantidad, stock_anterior, stock_resultante,
+                                               costo_unitario, motivo, usuario_registro)
+        VALUES (@repuesto_id, 'ENTRADA', @cantidad, @stock_anterior, @stock_anterior + @cantidad, @costo_compra,
+                ISNULL(@motivo, 'Compra a proveedor'), ISNULL(@usuario, SUSER_SNAME()));
 
         COMMIT TRANSACTION;
     END TRY
@@ -853,9 +906,9 @@ GO
 
 -- 14.3 Asignar un mecánico a una orden (impide personal inactivo o no disponible)
 CREATE OR ALTER PROCEDURE dbo.sp_AsignarMecanico
-    @IdOrden        INT,
-    @IdMecanico     INT,
-    @EsResponsable  BIT = 0
+    @orden_id        INT,
+    @mecanico_id     INT,
+    @es_responsable  BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -864,32 +917,32 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        DECLARE @Estado VARCHAR(25), @Activo BIT, @Disponible BIT;
+        DECLARE @estado VARCHAR(25), @activo BIT, @disponible BIT;
 
-        SELECT @Estado = Estado FROM dbo.OrdenesTrabajo WITH (UPDLOCK) WHERE IdOrden = @IdOrden AND Activo = 1;
-        IF @Estado IS NULL
+        SELECT @estado = estado FROM dbo.OrdenesTrabajo WITH (UPDLOCK) WHERE orden_id = @orden_id AND activo = 1;
+        IF @estado IS NULL
             THROW 50002, 'La orden no existe o está inactiva.', 1;
-        IF @Estado IN ('FINALIZADA','ENTREGADA','RECHAZADA','CANCELADA')
+        IF @estado IN ('FINALIZADA','ENTREGADA','RECHAZADA','CANCELADA')
             THROW 50030, 'No se pueden asignar mecánicos a una orden cerrada.', 1;
 
-        SELECT @Activo = Activo, @Disponible = Disponible FROM dbo.Mecanicos WHERE IdMecanico = @IdMecanico;
-        IF @Activo IS NULL
+        SELECT @activo = activo, @disponible = disponible FROM dbo.Mecanicos WHERE mecanico_id = @mecanico_id;
+        IF @activo IS NULL
             THROW 50031, 'El mecánico no existe.', 1;
-        IF @Activo = 0
+        IF @activo = 0
             THROW 50032, 'No se puede asignar un mecánico inactivo.', 1;
-        IF @Disponible = 0
+        IF @disponible = 0
             THROW 50033, 'El mecánico no está disponible.', 1;
 
         -- Si es el nuevo responsable, los demás dejan de serlo
-        IF @EsResponsable = 1
-            UPDATE dbo.AsignacionMecanicos SET EsResponsable = 0 WHERE IdOrden = @IdOrden AND EsResponsable = 1;
+        IF @es_responsable = 1
+            UPDATE dbo.AsignacionMecanicos SET es_responsable = 0 WHERE orden_id = @orden_id AND es_responsable = 1;
 
-        IF EXISTS (SELECT 1 FROM dbo.AsignacionMecanicos WHERE IdOrden = @IdOrden AND IdMecanico = @IdMecanico)
-            UPDATE dbo.AsignacionMecanicos SET EsResponsable = @EsResponsable
-            WHERE IdOrden = @IdOrden AND IdMecanico = @IdMecanico;
+        IF EXISTS (SELECT 1 FROM dbo.AsignacionMecanicos WHERE orden_id = @orden_id AND mecanico_id = @mecanico_id)
+            UPDATE dbo.AsignacionMecanicos SET es_responsable = @es_responsable
+            WHERE orden_id = @orden_id AND mecanico_id = @mecanico_id;
         ELSE
-            INSERT INTO dbo.AsignacionMecanicos (IdOrden, IdMecanico, EsResponsable)
-            VALUES (@IdOrden, @IdMecanico, @EsResponsable);
+            INSERT INTO dbo.AsignacionMecanicos (orden_id, mecanico_id, es_responsable)
+            VALUES (@orden_id, @mecanico_id, @es_responsable);
 
         COMMIT TRANSACTION;
     END TRY
@@ -902,8 +955,8 @@ GO
 
 -- 14.4 Cambiar el estado de una orden validando el flujo y las reglas de negocio
 CREATE OR ALTER PROCEDURE dbo.sp_CambiarEstadoOrden
-    @IdOrden      INT,
-    @NuevoEstado  VARCHAR(25)
+    @orden_id      INT,
+    @nuevo_estado  VARCHAR(25)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -912,75 +965,75 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        DECLARE @EstadoActual VARCHAR(25), @NivelMaximo TINYINT;
+        DECLARE @estado_actual VARCHAR(25), @nivel_maximo TINYINT;
 
-        SELECT @EstadoActual = Estado
+        SELECT @estado_actual = estado
         FROM dbo.OrdenesTrabajo WITH (UPDLOCK, HOLDLOCK)
-        WHERE IdOrden = @IdOrden AND Activo = 1;
+        WHERE orden_id = @orden_id AND activo = 1;
 
-        IF @EstadoActual IS NULL
+        IF @estado_actual IS NULL
             THROW 50002, 'La orden no existe o está inactiva.', 1;
 
         IF NOT EXISTS (SELECT 1 FROM dbo.TransicionesEstadoOrden
-                       WHERE EstadoActual = @EstadoActual AND EstadoSiguiente = @NuevoEstado)
+                       WHERE estado_actual = @estado_actual AND estado_siguiente = @nuevo_estado)
         BEGIN
-            DECLARE @Msg NVARCHAR(200) = CONCAT('No se permite pasar de ', @EstadoActual, ' a ', @NuevoEstado, '.');
-            THROW 50040, @Msg, 1;
+            DECLARE @msg NVARCHAR(200) = CONCAT('No se permite pasar de ', @estado_actual, ' a ', @nuevo_estado, '.');
+            THROW 50040, @msg, 1;
         END
 
-        SELECT @NivelMaximo = ISNULL(MAX(s.Nivel), 0)
-        FROM dbo.DetalleOrden d INNER JOIN dbo.Servicios s ON s.IdServicio = d.IdServicio
-        WHERE d.IdOrden = @IdOrden;
+        SELECT @nivel_maximo = ISNULL(MAX(s.nivel_complejidad), 0)
+        FROM dbo.DetalleOrden d INNER JOIN dbo.Servicios s ON s.servicio_id = d.servicio_id
+        WHERE d.orden_id = @orden_id;
 
         -- Para presupuestar: debe haber servicios; niveles 3 a 5 exigen diagnóstico registrado
-        IF @NuevoEstado = 'PENDIENTE_APROBACION'
+        IF @nuevo_estado = 'PENDIENTE_APROBACION'
         BEGIN
-            IF @NivelMaximo = 0
+            IF @nivel_maximo = 0
                 THROW 50041, 'La orden no tiene servicios registrados.', 1;
-            IF @NivelMaximo >= 3 AND NOT EXISTS (SELECT 1 FROM dbo.Diagnosticos WHERE IdOrden = @IdOrden)
+            IF @nivel_maximo >= 3 AND NOT EXISTS (SELECT 1 FROM dbo.Diagnosticos WHERE orden_id = @orden_id)
                 THROW 50042, 'Los servicios de nivel 3 a 5 requieren un diagnóstico registrado.', 1;
         END
 
         -- Para reparar: presupuesto aprobado por el cliente y mecánico responsable asignado
-        IF @NuevoEstado = 'EN_REPARACION' AND @EstadoActual = 'PENDIENTE_APROBACION'
+        IF @nuevo_estado = 'EN_REPARACION' AND @estado_actual = 'PENDIENTE_APROBACION'
         BEGIN
-            IF NOT EXISTS (SELECT 1 FROM dbo.Presupuestos WHERE IdOrden = @IdOrden AND Estado = 'APROBADO')
+            IF NOT EXISTS (SELECT 1 FROM dbo.Presupuestos WHERE orden_id = @orden_id AND estado = 'APROBADO')
                 THROW 50043, 'El cliente no ha aprobado el presupuesto.', 1;
-            IF NOT EXISTS (SELECT 1 FROM dbo.AsignacionMecanicos WHERE IdOrden = @IdOrden AND EsResponsable = 1)
+            IF NOT EXISTS (SELECT 1 FROM dbo.AsignacionMecanicos WHERE orden_id = @orden_id AND es_responsable = 1)
                 THROW 50044, 'La orden no tiene un mecánico responsable asignado.', 1;
         END
 
-        IF @NuevoEstado = 'RECHAZADA'
-           AND NOT EXISTS (SELECT 1 FROM dbo.Presupuestos WHERE IdOrden = @IdOrden AND Estado = 'RECHAZADO')
+        IF @nuevo_estado = 'RECHAZADA'
+           AND NOT EXISTS (SELECT 1 FROM dbo.Presupuestos WHERE orden_id = @orden_id AND estado = 'RECHAZADO')
             THROW 50045, 'Para rechazar la orden, el presupuesto debe estar rechazado por el cliente.', 1;
 
         -- Para finalizar: todo debe estar completo
-        IF @NuevoEstado = 'FINALIZADA'
+        IF @nuevo_estado = 'FINALIZADA'
         BEGIN
-            IF EXISTS (SELECT 1 FROM dbo.ActividadesTrabajo WHERE IdOrden = @IdOrden AND Estado <> 'COMPLETADA')
+            IF EXISTS (SELECT 1 FROM dbo.ActividadesTrabajo WHERE orden_id = @orden_id AND estado <> 'COMPLETADA')
                 THROW 50046, 'No se puede finalizar: hay actividades pendientes.', 1;
 
-            IF EXISTS (SELECT 1 FROM dbo.ConsumoRepuestos WHERE IdOrden = @IdOrden AND RegistradoEnInventario = 0)
-                THROW 50047, 'No se puede finalizar: hay consumos de repuestos sin registrar en inventario.', 1;
+            IF EXISTS (SELECT 1 FROM dbo.RepuestosOrden WHERE orden_id = @orden_id AND consumido = 0)
+                THROW 50047, 'No se puede finalizar: hay repuestos sin descontar del inventario.', 1;
 
             -- Control de calidad obligatorio para niveles 3 a 5: el último control debe estar aprobado
-            IF @NivelMaximo >= 3 AND ISNULL((SELECT TOP 1 Aprobado FROM dbo.ControlesCalidad
-                                             WHERE IdOrden = @IdOrden ORDER BY Fecha DESC, IdControl DESC), 0) = 0
+            IF @nivel_maximo >= 3 AND ISNULL((SELECT TOP 1 aprobado FROM dbo.ControlesCalidad
+                                              WHERE orden_id = @orden_id ORDER BY fecha DESC, control_id DESC), 0) = 0
                 THROW 50048, 'No se puede finalizar: el control de calidad obligatorio no está aprobado.', 1;
 
             -- Cambio de motor: pruebas aprobadas
-            IF EXISTS (SELECT 1 FROM dbo.CambiosMotor WHERE IdOrden = @IdOrden AND PruebasAprobadas = 0)
+            IF EXISTS (SELECT 1 FROM dbo.CambiosMotor WHERE orden_id = @orden_id AND pruebas_aprobadas = 0)
                 THROW 50049, 'No se puede finalizar: las pruebas del motor nuevo no están aprobadas.', 1;
 
             -- Reparación mayor (nivel 5): debe existir la garantía
-            IF @NivelMaximo = 5 AND NOT EXISTS (SELECT 1 FROM dbo.Garantias WHERE IdOrden = @IdOrden)
+            IF @nivel_maximo = 5 AND NOT EXISTS (SELECT 1 FROM dbo.Garantias WHERE orden_id = @orden_id)
                 THROW 50050, 'No se puede finalizar: la reparación mayor requiere generar la garantía.', 1;
         END
 
         UPDATE dbo.OrdenesTrabajo
-        SET Estado = @NuevoEstado,
-            FechaEntrega = CASE WHEN @NuevoEstado = 'ENTREGADA' THEN SYSDATETIME() ELSE FechaEntrega END
-        WHERE IdOrden = @IdOrden;
+        SET estado = @nuevo_estado,
+            fecha_entrega = CASE WHEN @nuevo_estado = 'ENTREGADA' THEN SYSDATETIME() ELSE fecha_entrega END
+        WHERE orden_id = @orden_id;
 
         COMMIT TRANSACTION;
     END TRY
@@ -993,79 +1046,83 @@ GO
 
 -- 14.5 Registrar la sustitución de motor (pasos 2, 3, 4, 9 y 10 del caso Hilux)
 --      Bloquea motores incompatibles, no disponibles o sin datos obligatorios, informando la causa.
---      En una sola transacción: registra el cambio, marca el motor como INSTALADO
---      y descuenta del inventario el repuesto que representa al motor.
+--      En una sola transacción: registra el cambio, marca el motor como INSTALADO,
+--      actualiza la serie del motor del vehículo y descuenta el motor del inventario.
 CREATE OR ALTER PROCEDURE dbo.sp_RegistrarCambioMotor
-    @IdOrden               INT,
-    @SerieMotorAnterior    VARCHAR(30),
-    @IdMotorNuevo          INT,
-    @DestinoMotorRetirado  VARCHAR(20),
-    @FechaDesmontaje       DATETIME2(0),
-    @FechaInstalacion      DATETIME2(0),
-    @ResultadoPruebas      VARCHAR(1000),
-    @PruebasAprobadas      BIT,
-    @Observaciones         VARCHAR(500) = NULL,
-    @IdCambioMotor         INT = NULL OUTPUT
+    @orden_id                INT,
+    @serie_motor_anterior    VARCHAR(30),
+    @motor_nuevo_id          INT,
+    @destino_motor_retirado  VARCHAR(20),
+    @fecha_desmontaje        DATETIME2(0),
+    @fecha_instalacion       DATETIME2(0),
+    @resultado_pruebas       VARCHAR(1000),
+    @pruebas_aprobadas       BIT,
+    @observaciones           VARCHAR(500) = NULL,
+    @usuario                 VARCHAR(60) = NULL,
+    @cambio_motor_id         INT = NULL OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
     -- Datos obligatorios
-    IF NULLIF(LTRIM(@SerieMotorAnterior), '') IS NULL
+    IF NULLIF(LTRIM(@serie_motor_anterior), '') IS NULL
         THROW 50060, 'Falta el número de serie del motor anterior.', 1;
-    IF @IdMotorNuevo IS NULL
+    IF @motor_nuevo_id IS NULL
         THROW 50061, 'Debe seleccionar el motor nuevo.', 1;
-    IF @DestinoMotorRetirado IS NULL
+    IF @destino_motor_retirado IS NULL
         THROW 50062, 'Debe indicar el destino del motor retirado.', 1;
-    IF @FechaDesmontaje IS NULL OR @FechaInstalacion IS NULL
+    IF @fecha_desmontaje IS NULL OR @fecha_instalacion IS NULL
         THROW 50063, 'Debe registrar las fechas de desmontaje e instalación.', 1;
-    IF NULLIF(LTRIM(@ResultadoPruebas), '') IS NULL
+    IF NULLIF(LTRIM(@resultado_pruebas), '') IS NULL
         THROW 50064, 'Debe registrar el resultado de las pruebas.', 1;
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        DECLARE @IdVehiculo INT, @Estado VARCHAR(25), @EstadoMotor VARCHAR(12), @IdRepuestoMotor INT;
+        DECLARE @vehiculo_id INT, @estado VARCHAR(25), @estado_motor VARCHAR(12),
+                @repuesto_motor_id INT, @serie_nueva VARCHAR(30);
 
-        SELECT @IdVehiculo = IdVehiculo, @Estado = Estado
-        FROM dbo.OrdenesTrabajo WITH (UPDLOCK) WHERE IdOrden = @IdOrden AND Activo = 1;
+        SELECT @vehiculo_id = vehiculo_id, @estado = estado
+        FROM dbo.OrdenesTrabajo WITH (UPDLOCK) WHERE orden_id = @orden_id AND activo = 1;
 
-        IF @IdVehiculo IS NULL
+        IF @vehiculo_id IS NULL
             THROW 50002, 'La orden no existe o está inactiva.', 1;
-        IF @Estado <> 'EN_REPARACION'
+        IF @estado <> 'EN_REPARACION'
             THROW 50065, 'El cambio de motor solo se registra con la orden en reparación.', 1;
-        IF NOT EXISTS (SELECT 1 FROM dbo.Presupuestos WHERE IdOrden = @IdOrden AND Estado = 'APROBADO')
+        IF NOT EXISTS (SELECT 1 FROM dbo.Presupuestos WHERE orden_id = @orden_id AND estado = 'APROBADO')
             THROW 50043, 'El cliente no ha autorizado el presupuesto.', 1;
 
-        SELECT @EstadoMotor = Estado, @IdRepuestoMotor = IdRepuesto
-        FROM dbo.Motores WITH (UPDLOCK) WHERE IdMotor = @IdMotorNuevo AND Activo = 1;
+        SELECT @estado_motor = estado, @repuesto_motor_id = repuesto_id, @serie_nueva = numero_serie
+        FROM dbo.Motores WITH (UPDLOCK) WHERE motor_id = @motor_nuevo_id AND activo = 1;
 
-        IF @EstadoMotor IS NULL
+        IF @estado_motor IS NULL
             THROW 50066, 'El motor seleccionado no existe o está inactivo.', 1;
-        IF @EstadoMotor <> 'DISPONIBLE'
+        IF @estado_motor <> 'DISPONIBLE'
         BEGIN
-            DECLARE @MsgMotor NVARCHAR(200) = CONCAT('El motor seleccionado no está disponible (estado: ', @EstadoMotor, ').');
-            THROW 50067, @MsgMotor, 1;
+            DECLARE @msg_motor NVARCHAR(200) = CONCAT('El motor seleccionado no está disponible (estado: ', @estado_motor, ').');
+            THROW 50067, @msg_motor, 1;
         END
-        IF dbo.fn_MotorCompatible(@IdMotorNuevo, @IdVehiculo) = 0
+        IF dbo.fn_MotorCompatible(@motor_nuevo_id, @vehiculo_id) = 0
             THROW 50068, 'El motor seleccionado no es compatible con la marca, modelo, año o combustible del vehículo.', 1;
-        IF EXISTS (SELECT 1 FROM dbo.Motores WHERE NumeroSerie = @SerieMotorAnterior AND IdMotor = @IdMotorNuevo)
+        IF @serie_nueva = @serie_motor_anterior
             THROW 50069, 'La serie del motor anterior no puede ser la misma del motor nuevo.', 1;
 
-        INSERT INTO dbo.CambiosMotor (IdOrden, IdVehiculo, SerieMotorAnterior, IdMotorNuevo, DestinoMotorRetirado,
-                                      FechaDesmontaje, FechaInstalacion, ResultadoPruebas, PruebasAprobadas,
-                                      AutorizadoCliente, Observaciones)
-        VALUES (@IdOrden, @IdVehiculo, @SerieMotorAnterior, @IdMotorNuevo, @DestinoMotorRetirado,
-                @FechaDesmontaje, @FechaInstalacion, @ResultadoPruebas, @PruebasAprobadas, 1, @Observaciones);
+        INSERT INTO dbo.CambiosMotor (orden_id, vehiculo_id, serie_motor_anterior, motor_nuevo_id, destino_motor_retirado,
+                                      fecha_desmontaje, fecha_instalacion, resultado_pruebas, pruebas_aprobadas,
+                                      autorizado_cliente, observaciones)
+        VALUES (@orden_id, @vehiculo_id, @serie_motor_anterior, @motor_nuevo_id, @destino_motor_retirado,
+                @fecha_desmontaje, @fecha_instalacion, @resultado_pruebas, @pruebas_aprobadas, 1, @observaciones);
 
-        SET @IdCambioMotor = SCOPE_IDENTITY();
+        SET @cambio_motor_id = SCOPE_IDENTITY();
 
-        UPDATE dbo.Motores SET Estado = 'INSTALADO' WHERE IdMotor = @IdMotorNuevo;
+        UPDATE dbo.Motores   SET estado = 'INSTALADO'          WHERE motor_id = @motor_nuevo_id;
+        UPDATE dbo.Vehiculos SET serie_motor_actual = @serie_nueva WHERE vehiculo_id = @vehiculo_id;
 
         -- El motor también es un artículo del inventario: se descuenta (paso 9)
-        IF @IdRepuestoMotor IS NOT NULL
-            EXEC dbo.sp_ConsumirRepuesto @IdOrden = @IdOrden, @IdRepuesto = @IdRepuestoMotor, @Cantidad = 1;
+        IF @repuesto_motor_id IS NOT NULL
+            EXEC dbo.sp_ConsumirRepuesto @orden_id = @orden_id, @repuesto_id = @repuesto_motor_id,
+                                         @cantidad = 1, @usuario = @usuario;
 
         COMMIT TRANSACTION;
     END TRY
@@ -1078,47 +1135,47 @@ GO
 
 -- 14.6 Registrar un pago parcial o total (impide sobrepagos)
 CREATE OR ALTER PROCEDURE dbo.sp_RegistrarPago
-    @IdOrden     INT,
-    @Monto       DECIMAL(12,2),
-    @Metodo      VARCHAR(15),
-    @Referencia  VARCHAR(60) = NULL,
-    @SaldoNuevo  DECIMAL(12,2) = NULL OUTPUT
+    @orden_id     INT,
+    @monto        DECIMAL(12,2),
+    @metodo       VARCHAR(15),
+    @referencia   VARCHAR(60) = NULL,
+    @saldo_nuevo  DECIMAL(12,2) = NULL OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    IF @Monto IS NULL OR @Monto <= 0
+    IF @monto IS NULL OR @monto <= 0
         THROW 50070, 'El monto del pago debe ser mayor que cero.', 1;
 
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        DECLARE @Estado VARCHAR(25), @Saldo DECIMAL(12,2);
+        DECLARE @estado VARCHAR(25), @saldo DECIMAL(12,2);
 
         -- Bloquea la orden: dos pagos simultáneos no pueden superar el saldo
-        SELECT @Estado = Estado FROM dbo.OrdenesTrabajo WITH (UPDLOCK, HOLDLOCK)
-        WHERE IdOrden = @IdOrden AND Activo = 1;
+        SELECT @estado = estado FROM dbo.OrdenesTrabajo WITH (UPDLOCK, HOLDLOCK)
+        WHERE orden_id = @orden_id AND activo = 1;
 
-        IF @Estado IS NULL
+        IF @estado IS NULL
             THROW 50002, 'La orden no existe o está inactiva.', 1;
-        IF @Estado IN ('RECHAZADA','CANCELADA')
+        IF @estado IN ('RECHAZADA','CANCELADA')
             THROW 50071, 'No se pueden registrar pagos en una orden rechazada o cancelada.', 1;
 
-        SELECT @Saldo = Saldo FROM dbo.fn_TotalesOrden(@IdOrden);
+        SELECT @saldo = saldo FROM dbo.fn_TotalesOrden(@orden_id);
 
-        IF @Saldo <= 0
+        IF @saldo <= 0
             THROW 50072, 'La orden no tiene saldo pendiente.', 1;
-        IF @Monto > @Saldo
+        IF @monto > @saldo
         BEGIN
-            DECLARE @Msg NVARCHAR(200) = CONCAT('Sobrepago: el monto (', @Monto, ') supera el saldo pendiente (', @Saldo, ').');
-            THROW 50073, @Msg, 1;
+            DECLARE @msg NVARCHAR(200) = CONCAT('Sobrepago: el monto (', @monto, ') supera el saldo pendiente (', @saldo, ').');
+            THROW 50073, @msg, 1;
         END
 
-        INSERT INTO dbo.Pagos (IdOrden, Monto, Metodo, Referencia)
-        VALUES (@IdOrden, @Monto, @Metodo, @Referencia);
+        INSERT INTO dbo.Pagos (orden_id, monto, metodo, referencia)
+        VALUES (@orden_id, @monto, @metodo, @referencia);
 
-        SET @SaldoNuevo = @Saldo - @Monto;
+        SET @saldo_nuevo = @saldo - @monto;
 
         COMMIT TRANSACTION;
     END TRY
@@ -1131,8 +1188,8 @@ GO
 
 -- 14.7 Generar la factura de una orden finalizada
 CREATE OR ALTER PROCEDURE dbo.sp_GenerarFactura
-    @IdOrden    INT,
-    @IdFactura  INT = NULL OUTPUT
+    @orden_id    INT,
+    @factura_id  INT = NULL OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1141,43 +1198,31 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        DECLARE @Estado VARCHAR(25);
-        SELECT @Estado = Estado FROM dbo.OrdenesTrabajo WITH (UPDLOCK, HOLDLOCK) WHERE IdOrden = @IdOrden AND Activo = 1;
+        DECLARE @estado VARCHAR(25);
+        SELECT @estado = estado FROM dbo.OrdenesTrabajo WITH (UPDLOCK, HOLDLOCK) WHERE orden_id = @orden_id AND activo = 1;
 
-        IF @Estado IS NULL
+        IF @estado IS NULL
             THROW 50002, 'La orden no existe o está inactiva.', 1;
-        IF @Estado NOT IN ('FINALIZADA','ENTREGADA')
+        IF @estado NOT IN ('FINALIZADA','ENTREGADA')
             THROW 50080, 'Solo se facturan órdenes finalizadas.', 1;
-        IF EXISTS (SELECT 1 FROM dbo.Facturas WHERE IdOrden = @IdOrden)
+        IF EXISTS (SELECT 1 FROM dbo.Facturas WHERE orden_id = @orden_id)
             THROW 50081, 'La orden ya tiene una factura.', 1;
 
-        INSERT INTO dbo.Facturas (IdOrden, Subtotal, Descuento, Impuesto, Total)
-        SELECT @IdOrden, t.TotalServicios + t.TotalRepuestos, t.Descuento, t.Impuesto, t.Total
-        FROM dbo.fn_TotalesOrden(@IdOrden) t;
+        INSERT INTO dbo.Facturas (orden_id, subtotal, descuento, impuesto, total)
+        SELECT @orden_id, t.total_servicios + t.total_repuestos, t.descuento, t.impuesto, t.total
+        FROM dbo.fn_TotalesOrden(@orden_id) t;
 
-        SET @IdFactura = SCOPE_IDENTITY();
+        SET @factura_id = SCOPE_IDENTITY();
 
         COMMIT TRANSACTION;
 
-        SELECT f.IdFactura, f.Numero, f.Fecha, f.Subtotal, f.Descuento, f.Impuesto, f.Total
-        FROM dbo.Facturas f WHERE f.IdFactura = @IdFactura;
+        SELECT f.factura_id, f.numero_factura, f.fecha_emision, f.subtotal, f.descuento, f.impuesto, f.total
+        FROM dbo.Facturas f WHERE f.factura_id = @factura_id;
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
         THROW;
     END CATCH
-END;
-GO
-
--- 14.8 Historial completo de un vehículo (por placa)
-CREATE OR ALTER PROCEDURE dbo.sp_HistorialVehiculo
-    @Placa VARCHAR(10)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SELECT * FROM dbo.vw_HistorialVehiculo
-    WHERE Placa = @Placa
-    ORDER BY FechaIngreso DESC;
 END;
 GO
 
@@ -1190,124 +1235,173 @@ GO
 CREATE OR ALTER VIEW dbo.vw_OrdenesResumen
 AS
 SELECT
-    o.IdOrden,
-    o.Numero,
-    o.FechaIngreso,
-    o.FechaEntrega,
-    o.Estado,
-    e.Descripcion                                   AS EstadoDescripcion,
-    c.IdCliente,
-    CONCAT(c.Nombre, ' ', c.Apellido)               AS Cliente,
-    v.IdVehiculo,
-    v.Placa,
-    CONCAT(v.Marca, ' ', v.Modelo, ' ', v.Anio)     AS Vehiculo,
-    NULLIF(LTRIM(RTRIM(CONCAT(m.Nombre, ' ', m.Apellido))), '') AS Responsable,
-    t.TotalServicios,
-    t.TotalRepuestos,
-    t.Descuento,
-    t.Impuesto,
-    t.Total,
-    t.TotalPagado,
-    t.Saldo,
-    f.Numero                                        AS Factura
+    o.orden_id,
+    o.numero_orden,
+    o.fecha_ingreso,
+    o.fecha_entrega,
+    o.estado,
+    e.descripcion                                          AS estado_descripcion,
+    c.cliente_id,
+    c.nombre                                               AS cliente,
+    v.vehiculo_id,
+    v.placa,
+    CONCAT(v.marca, ' ', v.modelo, ' ', v.anio)            AS vehiculo,
+    m.nombre                                               AS mecanico_responsable,
+    CAST(CASE WHEN EXISTS (SELECT 1 FROM dbo.Diagnosticos dg WHERE dg.orden_id = o.orden_id AND dg.requiere_cambio_motor = 1)
+                OR EXISTS (SELECT 1 FROM dbo.CambiosMotor cm WHERE cm.orden_id = o.orden_id)
+              THEN 1 ELSE 0 END AS BIT)                    AS requiere_cambio_motor,
+    t.total_servicios                                      AS total_mano_obra,
+    t.total_repuestos,
+    t.total_servicios + t.total_repuestos                  AS importe_total_base,
+    t.descuento,
+    t.impuesto,
+    t.total,
+    t.total_pagado,
+    t.saldo,
+    f.numero_factura
 FROM dbo.OrdenesTrabajo o
-INNER JOIN dbo.Clientes c      ON c.IdCliente  = o.IdCliente
-INNER JOIN dbo.Vehiculos v     ON v.IdVehiculo = o.IdVehiculo
-INNER JOIN dbo.EstadosOrden e  ON e.Codigo     = o.Estado
-LEFT  JOIN dbo.AsignacionMecanicos a ON a.IdOrden = o.IdOrden AND a.EsResponsable = 1
-LEFT  JOIN dbo.Mecanicos m     ON m.IdMecanico = a.IdMecanico
-LEFT  JOIN dbo.Facturas f      ON f.IdOrden    = o.IdOrden
-CROSS APPLY dbo.fn_TotalesOrden(o.IdOrden) t
-WHERE o.Activo = 1;
+INNER JOIN dbo.Clientes c      ON c.cliente_id  = o.cliente_id
+INNER JOIN dbo.Vehiculos v     ON v.vehiculo_id = o.vehiculo_id
+INNER JOIN dbo.EstadosOrden e  ON e.codigo      = o.estado
+LEFT  JOIN dbo.AsignacionMecanicos a ON a.orden_id = o.orden_id AND a.es_responsable = 1
+LEFT  JOIN dbo.Mecanicos m     ON m.mecanico_id = a.mecanico_id
+LEFT  JOIN dbo.Facturas f      ON f.orden_id    = o.orden_id
+CROSS APPLY dbo.fn_TotalesOrden(o.orden_id) t
+WHERE o.activo = 1;
 GO
 
--- Historial de cada vehículo: fechas, servicios, mecánicos, repuestos y costos
+-- Historial de cada vehículo: fechas, servicios, mecánicos, repuestos, costos y motores
 CREATE OR ALTER VIEW dbo.vw_HistorialVehiculo
 AS
 SELECT
-    v.IdVehiculo,
-    v.Placa,
-    CONCAT(v.Marca, ' ', v.Modelo, ' ', v.Anio)  AS Vehiculo,
-    CONCAT(c.Nombre, ' ', c.Apellido)            AS Propietario,
-    o.IdOrden,
-    o.Numero,
-    o.FechaIngreso,
-    o.FechaEntrega,
-    o.KilometrajeIngreso,
-    o.Estado,
-    srv.Servicios,
-    mec.Mecanicos,
-    rep.Repuestos,
-    t.TotalServicios,
-    t.TotalRepuestos,
-    t.Total
+    v.vehiculo_id,
+    v.placa,
+    CONCAT(v.marca, ' ', v.modelo, ' ', v.anio)  AS vehiculo,
+    c.nombre                                     AS propietario,
+    o.orden_id,
+    o.numero_orden,
+    o.fecha_ingreso,
+    o.fecha_entrega,
+    o.kilometraje_ingreso,
+    o.estado,
+    resp.nombre                                  AS mecanico_responsable,
+    mec.mecanicos,
+    srv.servicios_realizados,
+    rep.repuestos_utilizados,
+    t.total                                      AS costo_total_orden,
+    cm.serie_motor_anterior,
+    mn.numero_serie                              AS serie_motor_nuevo
 FROM dbo.Vehiculos v
-INNER JOIN dbo.Clientes c       ON c.IdCliente  = v.IdCliente
-INNER JOIN dbo.OrdenesTrabajo o ON o.IdVehiculo = v.IdVehiculo AND o.Activo = 1
-OUTER APPLY (SELECT STRING_AGG(s.Nombre, ', ') AS Servicios
-             FROM dbo.DetalleOrden d INNER JOIN dbo.Servicios s ON s.IdServicio = d.IdServicio
-             WHERE d.IdOrden = o.IdOrden) srv
-OUTER APPLY (SELECT STRING_AGG(CONCAT(m.Nombre, ' ', m.Apellido), ', ') AS Mecanicos
-             FROM dbo.AsignacionMecanicos a INNER JOIN dbo.Mecanicos m ON m.IdMecanico = a.IdMecanico
-             WHERE a.IdOrden = o.IdOrden) mec
-OUTER APPLY (SELECT STRING_AGG(CONCAT(r.Nombre, ' x', cr.Cantidad), ', ') AS Repuestos
-             FROM dbo.ConsumoRepuestos cr INNER JOIN dbo.Repuestos r ON r.IdRepuesto = cr.IdRepuesto
-             WHERE cr.IdOrden = o.IdOrden) rep
-CROSS APPLY dbo.fn_TotalesOrden(o.IdOrden) t;
+INNER JOIN dbo.Clientes c       ON c.cliente_id  = v.cliente_id
+INNER JOIN dbo.OrdenesTrabajo o ON o.vehiculo_id = v.vehiculo_id AND o.activo = 1
+LEFT  JOIN dbo.AsignacionMecanicos ar ON ar.orden_id = o.orden_id AND ar.es_responsable = 1
+LEFT  JOIN dbo.Mecanicos resp   ON resp.mecanico_id = ar.mecanico_id
+LEFT  JOIN dbo.CambiosMotor cm  ON cm.orden_id = o.orden_id
+LEFT  JOIN dbo.Motores mn       ON mn.motor_id = cm.motor_nuevo_id
+OUTER APPLY (SELECT STRING_AGG(s.nombre, ', ') AS servicios_realizados
+             FROM dbo.DetalleOrden d INNER JOIN dbo.Servicios s ON s.servicio_id = d.servicio_id
+             WHERE d.orden_id = o.orden_id) srv
+OUTER APPLY (SELECT STRING_AGG(m.nombre, ', ') AS mecanicos
+             FROM dbo.AsignacionMecanicos a INNER JOIN dbo.Mecanicos m ON m.mecanico_id = a.mecanico_id
+             WHERE a.orden_id = o.orden_id) mec
+OUTER APPLY (SELECT STRING_AGG(CONCAT(r.nombre_historico, ' x', r.cantidad), ', ') AS repuestos_utilizados
+             FROM dbo.RepuestosOrden r
+             WHERE r.orden_id = o.orden_id AND r.consumido = 1) rep
+CROSS APPLY dbo.fn_TotalesOrden(o.orden_id) t;
 GO
 
 -- Repuestos en o por debajo del stock mínimo (para reabastecer)
-CREATE OR ALTER VIEW dbo.vw_InventarioBajoMinimo
+CREATE OR ALTER VIEW dbo.vw_StockBajo
 AS
 SELECT
-    r.IdRepuesto,
-    r.Codigo,
-    r.Nombre,
-    r.Categoria,
-    r.Stock,
-    r.StockMinimo,
-    r.StockMinimo - r.Stock + 1      AS CantidadSugerida,
-    p.Nombre                         AS Proveedor,
-    p.Telefono                       AS TelefonoProveedor
+    r.repuesto_id,
+    r.codigo,
+    r.nombre,
+    r.categoria,
+    r.marca,
+    r.stock_actual,
+    r.stock_minimo,
+    r.stock_minimo - r.stock_actual  AS unidades_faltantes,
+    r.costo_compra,
+    p.nombre                         AS proveedor,
+    p.telefono                       AS telefono_proveedor
 FROM dbo.Repuestos r
-LEFT JOIN dbo.Proveedores p ON p.IdProveedor = r.IdProveedor
-WHERE r.Activo = 1
-  AND r.Stock <= r.StockMinimo;
+LEFT JOIN dbo.Proveedores p ON p.proveedor_id = r.proveedor_id
+WHERE r.activo = 1
+  AND r.stock_actual <= r.stock_minimo;
+GO
+
+-- Facturas con lo pagado y el saldo de cada una
+CREATE OR ALTER VIEW dbo.vw_SaldosFacturas
+AS
+SELECT
+    f.factura_id,
+    f.numero_factura,
+    o.orden_id,
+    o.numero_orden,
+    c.nombre                                      AS nombre_cliente,
+    f.subtotal,
+    f.descuento,
+    f.impuesto,
+    f.total,
+    ISNULL(pg.total_pagado, 0)                    AS total_pagado,
+    f.total - ISNULL(pg.total_pagado, 0)          AS saldo_pendiente,
+    CASE WHEN ISNULL(pg.total_pagado, 0) >= f.total THEN 'PAGADA'
+         WHEN ISNULL(pg.total_pagado, 0) > 0        THEN 'PARCIAL'
+         ELSE 'PENDIENTE' END                     AS estado_pago,
+    f.fecha_emision
+FROM dbo.Facturas f
+INNER JOIN dbo.OrdenesTrabajo o ON o.orden_id = f.orden_id
+INNER JOIN dbo.Clientes c       ON c.cliente_id = o.cliente_id
+LEFT JOIN (SELECT orden_id, SUM(monto) AS total_pagado FROM dbo.Pagos GROUP BY orden_id) pg
+       ON pg.orden_id = f.orden_id;
 GO
 
 -- Productividad de mecánicos: órdenes, actividades y horas (GROUP BY)
 CREATE OR ALTER VIEW dbo.vw_ProductividadMecanicos
 AS
 SELECT
-    m.IdMecanico,
-    m.CodigoEmpleado,
-    CONCAT(m.Nombre, ' ', m.Apellido)                                         AS Mecanico,
-    COUNT(DISTINCT a.IdOrden)                                                 AS OrdenesAsignadas,
-    COUNT(DISTINCT CASE WHEN a.EsResponsable = 1 THEN a.IdOrden END)          AS OrdenesComoResponsable,
+    m.mecanico_id,
+    m.codigo_empleado,
+    m.nombre                                                                AS mecanico,
+    COUNT(DISTINCT a.orden_id)                                              AS ordenes_asignadas,
+    COUNT(DISTINCT CASE WHEN a.es_responsable = 1 THEN a.orden_id END)      AS ordenes_como_responsable,
     (SELECT COUNT(*) FROM dbo.ActividadesTrabajo x
-     WHERE x.IdMecanico = m.IdMecanico AND x.Estado = 'COMPLETADA')           AS ActividadesCompletadas,
-    (SELECT ISNULL(SUM(x.Horas), 0) FROM dbo.ActividadesTrabajo x
-     WHERE x.IdMecanico = m.IdMecanico)                                       AS HorasTrabajadas
+     WHERE x.mecanico_id = m.mecanico_id AND x.estado = 'COMPLETADA')       AS actividades_completadas,
+    (SELECT ISNULL(SUM(x.horas), 0) FROM dbo.ActividadesTrabajo x
+     WHERE x.mecanico_id = m.mecanico_id)                                   AS horas_trabajadas
 FROM dbo.Mecanicos m
-LEFT JOIN dbo.AsignacionMecanicos a ON a.IdMecanico = m.IdMecanico
-WHERE m.Activo = 1
-GROUP BY m.IdMecanico, m.CodigoEmpleado, m.Nombre, m.Apellido;
+LEFT JOIN dbo.AsignacionMecanicos a ON a.mecanico_id = m.mecanico_id
+WHERE m.activo = 1
+GROUP BY m.mecanico_id, m.codigo_empleado, m.nombre;
 GO
 
 -- Servicios más solicitados e ingresos generados (GROUP BY + agregaciones)
 CREATE OR ALTER VIEW dbo.vw_ServiciosMasSolicitados
 AS
 SELECT
-    s.IdServicio,
-    s.Codigo,
-    s.Nombre,
-    s.Nivel,
-    COUNT(d.IdDetalle)                                  AS VecesSolicitado,
-    ISNULL(SUM(d.Cantidad * d.PrecioUnitario), 0)       AS Ingresos,
-    ISNULL(AVG(d.PrecioUnitario), 0)                    AS PrecioPromedio
+    s.servicio_id,
+    s.codigo,
+    s.nombre,
+    s.nivel_complejidad,
+    COUNT(d.detalle_id)                                 AS veces_solicitado,
+    ISNULL(SUM(d.cantidad * d.precio_unitario), 0)      AS ingresos,
+    ISNULL(AVG(d.precio_unitario), 0)                   AS precio_promedio
 FROM dbo.Servicios s
-LEFT JOIN dbo.DetalleOrden d ON d.IdServicio = s.IdServicio
-GROUP BY s.IdServicio, s.Codigo, s.Nombre, s.Nivel;
+LEFT JOIN dbo.DetalleOrden d ON d.servicio_id = s.servicio_id
+GROUP BY s.servicio_id, s.codigo, s.nombre, s.nivel_complejidad;
+GO
+
+-- Historial completo de un vehículo (por placa)
+CREATE OR ALTER PROCEDURE dbo.sp_HistorialVehiculo
+    @placa VARCHAR(10)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT * FROM dbo.vw_HistorialVehiculo
+    WHERE placa = @placa
+    ORDER BY fecha_ingreso DESC;
+END;
 GO
 
 
@@ -1315,7 +1409,7 @@ GO
    16. DATOS DE PRUEBA
    ===================================================================== */
 
-INSERT INTO dbo.EstadosOrden (Codigo, Descripcion, Secuencia, EsFinal) VALUES
+INSERT INTO dbo.EstadosOrden (codigo, descripcion, secuencia, es_final) VALUES
 ('RECIBIDA',             'Recibida',                1, 0),
 ('EN_DIAGNOSTICO',       'En diagnóstico',          2, 0),
 ('PENDIENTE_APROBACION', 'Pendiente de aprobación', 3, 0),
@@ -1326,7 +1420,7 @@ INSERT INTO dbo.EstadosOrden (Codigo, Descripcion, Secuencia, EsFinal) VALUES
 ('RECHAZADA',            'Rechazada',               8, 1),
 ('CANCELADA',            'Cancelada',               9, 1);
 
-INSERT INTO dbo.TransicionesEstadoOrden (EstadoActual, EstadoSiguiente) VALUES
+INSERT INTO dbo.TransicionesEstadoOrden (estado_actual, estado_siguiente) VALUES
 ('RECIBIDA',             'EN_DIAGNOSTICO'),
 ('RECIBIDA',             'CANCELADA'),
 ('EN_DIAGNOSTICO',       'PENDIENTE_APROBACION'),
@@ -1340,12 +1434,12 @@ INSERT INTO dbo.TransicionesEstadoOrden (EstadoActual, EstadoSiguiente) VALUES
 ('EN_CONTROL_CALIDAD',   'EN_REPARACION'),   -- si el control falla, vuelve a reparación
 ('FINALIZADA',           'ENTREGADA');
 
-INSERT INTO dbo.ConfiguracionImpuestos (Nombre, Porcentaje, EsPredeterminado) VALUES
+INSERT INTO dbo.ConfiguracionImpuestos (nombre, porcentaje, es_predeterminado) VALUES
 ('ISV 15%', 15.00, 1),
 ('ISV 18%', 18.00, 0),
 ('Exento',   0.00, 0);
 
-INSERT INTO dbo.Especialidades (Nombre, Descripcion) VALUES
+INSERT INTO dbo.Especialidades (nombre, descripcion) VALUES
 ('Mantenimiento general', 'Aceite, filtros, bujías, luces'),
 ('Frenos y suspensión',   'Sistema de frenos, amortiguadores, dirección'),
 ('Sistema eléctrico',     'Alternador, batería, cableado, sensores'),
@@ -1353,67 +1447,67 @@ INSERT INTO dbo.Especialidades (Nombre, Descripcion) VALUES
 ('Motores',               'Culata, reconstrucción y sustitución de motor');
 
 -- Clientes (Carlos tiene dos vehículos: historiales separados)
-INSERT INTO dbo.Clientes (Identidad, Nombre, Apellido, Telefono, Correo, Direccion) VALUES
-('0801-1985-12345', 'Carlos',  'Mejía',     '9988-1122', 'carlos.mejia@correo.hn',  'Col. Kennedy, Tegucigalpa'),
-('0501-1990-54321', 'Ana',     'Rodríguez', '9876-5432', 'ana.rodriguez@correo.hn', 'Barrio Río de Piedras, San Pedro Sula'),
-('0801-1978-67890', 'Luis',    'Fernández', '3344-5566', NULL,                      'Res. Las Uvas, Tegucigalpa');
+INSERT INTO dbo.Clientes (identificacion, nombre, telefono, correo, direccion, tipo_cliente) VALUES
+('0801-1985-12345', 'Carlos Mejía',         '9988-1122', 'carlos.mejia@correo.hn',  'Col. Kennedy, Tegucigalpa',             'PARTICULAR'),
+('0501-1990-54321', 'Ana Rodríguez',        '9876-5432', 'ana.rodriguez@correo.hn', 'Barrio Río de Piedras, San Pedro Sula', 'PARTICULAR'),
+('08019010111222',  'Transportes Lempira',  '2234-5566', 'flota@tlempira.hn',       'Blvd. del Norte, Tegucigalpa',          'CORPORATIVO');
 
-INSERT INTO dbo.Vehiculos (IdCliente, Placa, VIN, Marca, Modelo, Anio, Color, Kilometraje, Combustible) VALUES
-(1, 'HAB 1234', 'MR0FZ29G5F1234567', 'Toyota', 'Hilux',    2015, 'Blanco', 185000, 'DIESEL'),
-(1, 'HCD 5678', '2HGFC2F59JH512345', 'Honda',  'Civic',    2018, 'Gris',    62000, 'GASOLINA'),
-(2, 'PBE 4321', '3N6CD33B6KK123456', 'Nissan', 'Frontier', 2019, 'Rojo',    98000, 'DIESEL'),
-(3, 'TGU 2468', 'KNADM4A39L6123456', 'Kia',    'Rio',      2020, 'Azul',    45000, 'GASOLINA');
+INSERT INTO dbo.Vehiculos (cliente_id, placa, vin, marca, modelo, anio, color, kilometraje, combustible, serie_motor_actual) VALUES
+(1, 'HAB 1234', 'MR0FZ29G5F1234567', 'Toyota', 'Hilux',    2015, 'Blanco', 185000, 'DIESEL',   '1KD-5511223'),
+(1, 'HCD 5678', '2HGFC2F59JH512345', 'Honda',  'Civic',    2018, 'Gris',    62000, 'GASOLINA', 'K20C2-889900'),
+(2, 'PBE 4321', '3N6CD33B6KK123456', 'Nissan', 'Frontier', 2019, 'Rojo',    98000, 'DIESEL',   'YD25-445566'),
+(3, 'TGU 2468', 'KNADM4A39L6123456', 'Kia',    'Rio',      2020, 'Azul',    45000, 'GASOLINA', NULL);
 
-INSERT INTO dbo.Mecanicos (CodigoEmpleado, Identidad, Nombre, Apellido, Telefono, TarifaHora, Disponible, Activo) VALUES
-('MEC-001', '0801-1980-11111', 'José',    'Martínez', '9911-2233', 250.00, 1, 1),
-('MEC-002', '0801-1988-22222', 'Pedro',   'Álvarez',  '9922-3344', 220.00, 1, 1),
-('MEC-003', '0801-1992-33333', 'María',   'López',    '9933-4455', 230.00, 1, 1),
-('MEC-004', '0801-1975-44444', 'Ricardo', 'Banegas',  '9944-5566', 200.00, 0, 1),   -- no disponible
-('MEC-005', '0801-1970-55555', 'Jorge',   'Zelaya',   '9955-6677', 180.00, 1, 0);   -- inactivo
+INSERT INTO dbo.Mecanicos (codigo_empleado, identificacion, nombre, telefono, nivel_certificacion, tarifa_hora, disponible, activo) VALUES
+('MEC-001', '0801-1980-11111', 'José Martínez',   '9911-2233', 'MASTER', 250.00, 1, 1),
+('MEC-002', '0801-1988-22222', 'Pedro Álvarez',   '9922-3344', 'SENIOR', 220.00, 1, 1),
+('MEC-003', '0801-1992-33333', 'María López',     '9933-4455', 'SENIOR', 230.00, 1, 1),
+('MEC-004', '0801-1975-44444', 'Ricardo Banegas', '9944-5566', 'SENIOR', 200.00, 0, 1),   -- no disponible
+('MEC-005', '0801-1970-55555', 'Jorge Zelaya',    '9955-6677', 'JUNIOR', 180.00, 0, 0);   -- inactivo
 
-INSERT INTO dbo.MecanicoEspecialidades (IdMecanico, IdEspecialidad) VALUES
+INSERT INTO dbo.MecanicoEspecialidades (mecanico_id, especialidad_id) VALUES
 (1, 5), (1, 4),       -- José: motores y transmisiones
 (2, 1), (2, 2),       -- Pedro: mantenimiento y frenos
 (3, 3), (3, 1),       -- María: eléctrico y mantenimiento
 (4, 2), (5, 1);
 
-INSERT INTO dbo.Proveedores (RTN, Nombre, Contacto, Telefono, Correo, Direccion) VALUES
-('08019001234567', 'Repuestos Toyota Honduras', 'Mario Cruz',   '2232-1000', 'ventas@reptoyota.hn', 'Blvd. Suyapa, Tegucigalpa'),
-('05019007654321', 'Lubricantes del Norte',     'Sofía Pineda', '2550-2000', 'pedidos@lubrinorte.hn', 'Zona Industrial, San Pedro Sula'),
+INSERT INTO dbo.Proveedores (rtn, nombre, contacto, telefono, correo, direccion) VALUES
+('08019001234567', 'Repuestos Toyota Honduras', 'Mario Cruz',   '2232-1000', 'ventas@reptoyota.hn',    'Blvd. Suyapa, Tegucigalpa'),
+('05019007654321', 'Lubricantes del Norte',     'Sofía Pineda', '2550-2000', 'pedidos@lubrinorte.hn',  'Zona Industrial, San Pedro Sula'),
 ('08019005555555', 'Motores y Partes S.A.',     'Iván Reyes',   '2239-3000', 'info@motoresypartes.hn', 'Anillo Periférico, Tegucigalpa');
 
-INSERT INTO dbo.Repuestos (Codigo, Nombre, Categoria, Marca, Stock, StockMinimo, CostoUnitario, PrecioVenta, IdProveedor) VALUES
-('ACE-1540',  'Aceite 15W-40 diésel (galón)',      'ACEITE',      'Mobil',   30, 10,   520.00,   680.00, 2),
-('ACE-5W30',  'Aceite sintético 5W-30 (cuarto)',   'ACEITE',      'Castrol', 48, 12,   210.00,   290.00, 2),
-('FIL-ACE01', 'Filtro de aceite',                  'FILTRO',      'Toyota',  25,  8,   180.00,   260.00, 1),
-('FIL-AIR01', 'Filtro de aire',                    'FILTRO',      'Toyota',  15,  5,   300.00,   420.00, 1),
-('BUJ-IRI01', 'Bujía de iridio',                   'BUJIA',       'NGK',     40, 16,   190.00,   280.00, 1),
-('BAT-12V70', 'Batería 12V 70Ah',                  'BATERIA',     'LTH',      6,  3,  2600.00,  3400.00, 1),
-('FRE-PAS01', 'Juego de pastillas de freno',       'FRENOS',      'Brembo',  12,  4,   950.00,  1350.00, 1),
-('RAD-HIL01', 'Radiador Hilux',                    'RADIADOR',    'Denso',    2,  1,  5200.00,  6900.00, 1),
-('EMB-KIT01', 'Kit de embrague',                   'TRANSMISION', 'Exedy',    3,  2,  4800.00,  6300.00, 1),
-('REF-GAL01', 'Refrigerante (galón)',              'OTRO',        'Prestone', 4, 10,   260.00,   350.00, 2),   -- bajo mínimo
-('EMP-CUL01', 'Empaque de culata',                 'MOTOR',       'Toyota',   5,  2,  1100.00,  1500.00, 1),
-('MOT-1KD01', 'Motor 1KD-FTV 3.0 diésel',          'MOTOR',       'Toyota',   1,  0, 95000.00,125000.00, 3),
-('MOT-2KD01', 'Motor 2KD-FTV 2.5 diésel',          'MOTOR',       'Toyota',   1,  0, 82000.00,108000.00, 3),
-('MOT-YD251', 'Motor YD25 2.5 diésel',             'MOTOR',       'Nissan',   1,  0, 78000.00,102000.00, 3);
+INSERT INTO dbo.Repuestos (codigo, nombre, categoria, marca, proveedor_id, stock_actual, stock_minimo, costo_compra, precio_venta, ubicacion) VALUES
+('ACE-1540',  'Aceite 15W-40 diésel (galón)',    'ACEITE',      'Mobil',    2, 30, 10,   520.00,   680.00, 'Estante A1'),
+('ACE-5W30',  'Aceite sintético 5W-30 (cuarto)', 'ACEITE',      'Castrol',  2, 48, 12,   210.00,   290.00, 'Estante A2'),
+('FIL-ACE01', 'Filtro de aceite',                'FILTRO',      'Toyota',   1, 25,  8,   180.00,   260.00, 'Estante B1'),
+('FIL-AIR01', 'Filtro de aire',                  'FILTRO',      'Toyota',   1, 15,  5,   300.00,   420.00, 'Estante B2'),
+('BUJ-IRI01', 'Bujía de iridio',                 'BUJIA',       'NGK',      1, 40, 16,   190.00,   280.00, 'Estante B3'),
+('BAT-12V70', 'Batería 12V 70Ah',                'BATERIA',     'LTH',      1,  6,  3,  2600.00,  3400.00, 'Bodega 1'),
+('FRE-PAS01', 'Juego de pastillas de freno',     'FRENOS',      'Brembo',   1, 12,  4,   950.00,  1350.00, 'Estante C1'),
+('RAD-HIL01', 'Radiador Hilux',                  'RADIADOR',    'Denso',    1,  2,  1,  5200.00,  6900.00, 'Bodega 2'),
+('EMB-KIT01', 'Kit de embrague',                 'TRANSMISION', 'Exedy',    1,  3,  2,  4800.00,  6300.00, 'Bodega 2'),
+('REF-GAL01', 'Refrigerante (galón)',            'OTRO',        'Prestone', 2,  4, 10,   260.00,   350.00, 'Estante A3'),   -- bajo mínimo
+('EMP-CUL01', 'Empaque de culata',               'MOTOR',       'Toyota',   1,  5,  2,  1100.00,  1500.00, 'Estante C2'),
+('MOT-1KD01', 'Motor 1KD-FTV 3.0 diésel',        'MOTOR',       'Toyota',   3,  1,  0, 95000.00,125000.00, 'Bodega motores'),
+('MOT-2KD01', 'Motor 2KD-FTV 2.5 diésel',        'MOTOR',       'Toyota',   3,  1,  0, 82000.00,108000.00, 'Bodega motores'),
+('MOT-YD251', 'Motor YD25 2.5 diésel',           'MOTOR',       'Nissan',   3,  1,  0, 78000.00,102000.00, 'Bodega motores');
 
-INSERT INTO dbo.Servicios (Codigo, Nombre, Descripcion, Nivel, CostoManoObra, TiempoEstimadoHoras) VALUES
-('SRV-101', 'Cambio de aceite y filtro',       'Drenado, cambio de aceite y filtro',             1,   350.00,  1.00),
-('SRV-102', 'Cambio de bujías',                'Sustitución del juego de bujías',                1,   400.00,  1.00),
-('SRV-103', 'Revisión de luces',               'Revisión y cambio de bombillos',                 1,   200.00,  0.50),
-('SRV-201', 'Afinamiento mayor',               'Bujías, filtros, limpieza de cuerpo de aceleración', 2, 1200.00, 3.00),
-('SRV-202', 'Limpieza de inyectores',          'Limpieza por ultrasonido',                       2,  1500.00,  2.50),
-('SRV-203', 'Servicio de frenos',              'Cambio de pastillas y rectificado de discos',    2,   900.00,  2.00),
-('SRV-301', 'Cambio de radiador',              'Sustitución de radiador y refrigerante',         3,  1800.00,  3.00),
-('SRV-302', 'Cambio de embrague',              'Sustitución del kit de embrague',                3,  3500.00,  6.00),
-('SRV-303', 'Reparación de alternador',        'Diagnóstico y reparación',                       3,  1600.00,  3.00),
-('SRV-401', 'Reparación de transmisión',       'Desarme y reparación de caja de cambios',        4,  8500.00, 16.00),
-('SRV-402', 'Reparación de culata',            'Rectificado y cambio de empaque',                4,  7000.00, 12.00),
-('SRV-501', 'Sustitución de motor',            'Desmontaje, instalación y pruebas de motor',     5, 18000.00, 24.00),
-('SRV-502', 'Reconstrucción de motor',         'Reconstrucción completa del motor',              5, 22000.00, 32.00);
+INSERT INTO dbo.Servicios (codigo, nombre, descripcion, nivel_complejidad, categoria_complejidad, costo_mano_obra, tiempo_estimado_horas) VALUES
+('SRV-101', 'Cambio de aceite y filtro',  'Drenado, cambio de aceite y filtro',                 1, 'Mantenimiento básico',       350.00,  1.00),
+('SRV-102', 'Cambio de bujías',           'Sustitución del juego de bujías',                    1, 'Mantenimiento básico',       400.00,  1.00),
+('SRV-103', 'Revisión de luces',          'Revisión y cambio de bombillos',                     1, 'Mantenimiento básico',       200.00,  0.50),
+('SRV-201', 'Afinamiento mayor',          'Bujías, filtros, limpieza de cuerpo de aceleración', 2, 'Mantenimiento preventivo',  1200.00,  3.00),
+('SRV-202', 'Limpieza de inyectores',     'Limpieza por ultrasonido',                           2, 'Mantenimiento preventivo',  1500.00,  2.50),
+('SRV-203', 'Servicio de frenos',         'Cambio de pastillas y rectificado de discos',        2, 'Mantenimiento preventivo',   900.00,  2.00),
+('SRV-301', 'Cambio de radiador',         'Sustitución de radiador y refrigerante',             3, 'Reparación intermedia',     1800.00,  3.00),
+('SRV-302', 'Cambio de embrague',         'Sustitución del kit de embrague',                    3, 'Reparación intermedia',     3500.00,  6.00),
+('SRV-303', 'Reparación de alternador',   'Diagnóstico y reparación',                           3, 'Reparación intermedia',     1600.00,  3.00),
+('SRV-401', 'Reparación de transmisión',  'Desarme y reparación de caja de cambios',            4, 'Reparación avanzada',       8500.00, 16.00),
+('SRV-402', 'Reparación de culata',       'Rectificado y cambio de empaque',                    4, 'Reparación avanzada',       7000.00, 12.00),
+('SRV-501', 'Sustitución de motor',       'Desmontaje, instalación y pruebas de motor',         5, 'Reparación mayor',         18000.00, 24.00),
+('SRV-502', 'Reconstrucción de motor',    'Reconstrucción completa del motor',                  5, 'Reparación mayor',         22000.00, 32.00);
 
-INSERT INTO dbo.ServicioRepuestos (IdServicio, IdRepuesto, CantidadSugerida) VALUES
+INSERT INTO dbo.ServicioRepuestos (servicio_id, repuesto_id, cantidad_sugerida) VALUES
 (1, 2, 5), (1, 3, 1),          -- cambio de aceite: aceite 5W-30 + filtro
 (2, 5, 4),                     -- bujías
 (4, 5, 4), (4, 4, 1), (4, 3, 1),
@@ -1424,56 +1518,56 @@ INSERT INTO dbo.ServicioRepuestos (IdServicio, IdRepuesto, CantidadSugerida) VAL
 (12, 12, 1), (12, 1, 2), (12, 10, 2);  -- sustitución de motor
 
 -- Motores para el caso Hilux 2015
-INSERT INTO dbo.Motores (NumeroSerie, Marca, ModeloMotor, Cilindrada, Combustible, Estado, EsNuevo, Costo, IdRepuesto, IdProveedor) VALUES
-('1KD-7845123', 'Toyota', '1KD-FTV', '3.0L', 'DIESEL', 'DISPONIBLE', 1,  95000.00, 12, 3),   -- compatible con la Hilux 2015
-('2KD-6632145', 'Toyota', '2KD-FTV', '2.5L', 'DIESEL', 'RESERVADO',  1,  82000.00, 13, 3),   -- compatible, pero no disponible
-('YD25-998877', 'Nissan', 'YD25DDTi','2.5L', 'DIESEL', 'DISPONIBLE', 1,  78000.00, 14, 3);   -- incompatible con la Hilux
+INSERT INTO dbo.Motores (numero_serie, marca, modelo_motor, cilindrada, combustible, estado, es_nuevo, costo, repuesto_id, proveedor_id) VALUES
+('1KD-7845123', 'Toyota', '1KD-FTV',  '3.0L', 'DIESEL', 'DISPONIBLE', 1, 95000.00, 12, 3),   -- compatible con la Hilux 2015
+('2KD-6632145', 'Toyota', '2KD-FTV',  '2.5L', 'DIESEL', 'RESERVADO',  1, 82000.00, 13, 3),   -- compatible, pero no disponible
+('YD25-998877', 'Nissan', 'YD25DDTi', '2.5L', 'DIESEL', 'DISPONIBLE', 1, 78000.00, 14, 3);   -- incompatible con la Hilux
 
-INSERT INTO dbo.CompatibilidadMotor (IdMotor, Marca, Modelo, AnioDesde, AnioHasta) VALUES
+INSERT INTO dbo.CompatibilidadMotor (motor_id, marca, modelo, anio_desde, anio_hasta) VALUES
 (1, 'Toyota', 'Hilux',    2005, 2015),
 (1, 'Toyota', 'Fortuner', 2005, 2015),
 (2, 'Toyota', 'Hilux',    2005, 2015),
 (3, 'Nissan', 'Frontier', 2008, 2020);
 
--- Orden histórica 1: Honda Civic, cambio de aceite, entregada y pagada
--- (se crea abierta y al final se cierra, porque una orden cerrada no acepta servicios)
-INSERT INTO dbo.OrdenesTrabajo (IdCliente, IdVehiculo, FechaIngreso, KilometrajeIngreso, Sintomas, DiagnosticoPreliminar, Estado)
-VALUES (1, 2, DATEADD(DAY, -30, SYSDATETIME()), 60000, 'Mantenimiento programado de 60,000 km', 'Cambio de aceite y filtro', 'EN_CONTROL_CALIDAD');
-
-INSERT INTO dbo.DetalleOrden (IdOrden, IdServicio, Cantidad, PrecioUnitario) VALUES (1, 1, 1, 350.00);
-INSERT INTO dbo.AsignacionMecanicos (IdOrden, IdMecanico, EsResponsable) VALUES (1, 2, 1);
-INSERT INTO dbo.ActividadesTrabajo (IdOrden, IdMecanico, Descripcion, Horas, Estado, Inicio, Fin)
-VALUES (1, 2, 'Cambio de aceite y filtro', 1.00, 'COMPLETADA', DATEADD(DAY, -30, SYSDATETIME()), DATEADD(DAY, -30, DATEADD(HOUR, 1, SYSDATETIME())));
-INSERT INTO dbo.ConsumoRepuestos (IdOrden, IdRepuesto, Cantidad, PrecioUnitario, Fecha, RegistradoEnInventario) VALUES
-(1, 2, 5, 290.00, DATEADD(DAY, -30, SYSDATETIME()), 1),
-(1, 3, 1, 260.00, DATEADD(DAY, -30, SYSDATETIME()), 1);
-INSERT INTO dbo.MovimientosInventario (IdRepuesto, Tipo, Cantidad, CostoUnitario, Fecha, Referencia, IdOrden) VALUES
-(2, 'SALIDA', 5, 210.00, DATEADD(DAY, -30, SYSDATETIME()), 'Consumo orden OT-000001', 1),
-(3, 'SALIDA', 1, 180.00, DATEADD(DAY, -30, SYSDATETIME()), 'Consumo orden OT-000001', 1);
-INSERT INTO dbo.ControlesCalidad (IdOrden, IdInspector, Fecha, Aprobado, Checklist)
-VALUES (1, 3, DATEADD(DAY, -30, DATEADD(HOUR, 1, SYSDATETIME())), 1, 'Nivel de aceite OK; sin fugas; testigo apagado');
--- Total = (350 + 1450 + 260) * 1.15 = 2,369.00
-INSERT INTO dbo.Pagos (IdOrden, Monto, Metodo, Fecha, Referencia) VALUES (1, 2369.00, 'TARJETA', DATEADD(DAY, -30, DATEADD(HOUR, 2, SYSDATETIME())), 'VISA-4521');
-INSERT INTO dbo.Facturas (IdOrden, Fecha, Subtotal, Descuento, Impuesto, Total)
-VALUES (1, DATEADD(DAY, -30, DATEADD(HOUR, 2, SYSDATETIME())), 2060.00, 0, 309.00, 2369.00);
-UPDATE dbo.OrdenesTrabajo SET Estado = 'ENTREGADA', FechaEntrega = DATEADD(DAY, -30, DATEADD(HOUR, 2, SYSDATETIME()))
-WHERE IdOrden = 1;
-
--- Orden 2: Nissan Frontier, frenos, en reparación (para la demostración)
-INSERT INTO dbo.OrdenesTrabajo (IdCliente, IdVehiculo, KilometrajeIngreso, Sintomas, DiagnosticoPreliminar, Estado)
+-- Orden 1: Nissan Frontier, frenos, EN REPARACIÓN (sirve para consumir repuestos en la demostración)
+INSERT INTO dbo.OrdenesTrabajo (cliente_id, vehiculo_id, kilometraje_ingreso, sintomas, diagnostico_preliminar, estado)
 VALUES (2, 3, 98000, 'Ruido metálico al frenar', 'Pastillas gastadas', 'EN_REPARACION');
-INSERT INTO dbo.DetalleOrden (IdOrden, IdServicio, Cantidad, PrecioUnitario) VALUES (2, 6, 1, 900.00);
-INSERT INTO dbo.AsignacionMecanicos (IdOrden, IdMecanico, EsResponsable) VALUES (2, 2, 1), (2, 3, 0);
-INSERT INTO dbo.Presupuestos (IdOrden, Subtotal, Descuento, IdImpuesto, MontoImpuesto, Total, Estado, FechaRespuesta)
-VALUES (2, 2250.00, 0, 1, 337.50, 2587.50, 'APROBADO', SYSDATETIME());
-INSERT INTO dbo.DetallePresupuesto (IdPresupuesto, TipoLinea, IdServicio, IdRepuesto, Descripcion, Horas, Cantidad, PrecioUnitario) VALUES
+INSERT INTO dbo.DetalleOrden (orden_id, servicio_id, cantidad, precio_unitario) VALUES (1, 6, 1, 900.00);
+INSERT INTO dbo.AsignacionMecanicos (orden_id, mecanico_id, es_responsable) VALUES (1, 2, 1), (1, 3, 0);
+INSERT INTO dbo.Presupuestos (orden_id, subtotal, descuento, impuesto_id, monto_impuesto, total, estado, fecha_respuesta)
+VALUES (1, 2250.00, 0, 1, 337.50, 2587.50, 'APROBADO', SYSDATETIME());
+INSERT INTO dbo.DetallePresupuesto (presupuesto_id, tipo_linea, servicio_id, repuesto_id, descripcion, horas, cantidad, precio_unitario) VALUES
 (1, 'MANO_OBRA', 6,    NULL, 'Servicio de frenos',          2.00, 1,  900.00),
 (1, 'REPUESTO',  NULL, 7,    'Juego de pastillas de freno', 0.00, 1, 1350.00);
-INSERT INTO dbo.ActividadesTrabajo (IdOrden, IdMecanico, Descripcion, Horas, Estado, Inicio)
-VALUES (2, 2, 'Cambio de pastillas delanteras', 0, 'EN_PROCESO', SYSDATETIME());
+INSERT INTO dbo.ActividadesTrabajo (orden_id, mecanico_id, descripcion, horas, estado, inicio)
+VALUES (1, 2, 'Cambio de pastillas delanteras', 0, 'EN_PROCESO', SYSDATETIME());
+
+-- Orden 2: Honda Civic, cambio de aceite, histórica: entregada, pagada y facturada
+-- (se crea abierta y al final se cierra, porque una orden cerrada no acepta servicios ni repuestos)
+INSERT INTO dbo.OrdenesTrabajo (cliente_id, vehiculo_id, fecha_ingreso, kilometraje_ingreso, sintomas, diagnostico_preliminar, estado)
+VALUES (1, 2, DATEADD(DAY, -30, SYSDATETIME()), 60000, 'Mantenimiento programado de 60,000 km', 'Cambio de aceite y filtro', 'EN_CONTROL_CALIDAD');
+INSERT INTO dbo.DetalleOrden (orden_id, servicio_id, cantidad, precio_unitario) VALUES (2, 1, 1, 350.00);
+INSERT INTO dbo.AsignacionMecanicos (orden_id, mecanico_id, es_responsable) VALUES (2, 2, 1);
+INSERT INTO dbo.ActividadesTrabajo (orden_id, mecanico_id, descripcion, horas, estado, inicio, fin)
+VALUES (2, 2, 'Cambio de aceite y filtro', 1.00, 'COMPLETADA', DATEADD(DAY, -30, SYSDATETIME()), DATEADD(DAY, -30, DATEADD(HOUR, 1, SYSDATETIME())));
+INSERT INTO dbo.RepuestosOrden (orden_id, repuesto_id, nombre_historico, cantidad, costo_unitario_historico, precio_unitario_historico, consumido, fecha) VALUES
+(2, 2, 'Aceite sintético 5W-30 (cuarto)', 5, 210.00, 290.00, 1, DATEADD(DAY, -30, SYSDATETIME())),
+(2, 3, 'Filtro de aceite',                1, 180.00, 260.00, 1, DATEADD(DAY, -30, SYSDATETIME()));
+INSERT INTO dbo.MovimientosInventario (repuesto_id, orden_id, tipo_movimiento, cantidad, stock_anterior, stock_resultante,
+                                       costo_unitario, motivo, usuario_registro, fecha_movimiento) VALUES
+(2, 2, 'SALIDA_ORDEN', 5, 53, 48, 210.00, 'Consumo en orden OT-000002', 'SISTEMA', DATEADD(DAY, -30, SYSDATETIME())),
+(3, 2, 'SALIDA_ORDEN', 1, 26, 25, 180.00, 'Consumo en orden OT-000002', 'SISTEMA', DATEADD(DAY, -30, SYSDATETIME()));
+INSERT INTO dbo.ControlesCalidad (orden_id, inspector_id, fecha, aprobado, checklist)
+VALUES (2, 3, DATEADD(DAY, -30, DATEADD(HOUR, 1, SYSDATETIME())), 1, 'Nivel de aceite OK; sin fugas; testigo apagado');
+-- Total = (350 + 1450 + 260) * 1.15 = 2,369.00
+INSERT INTO dbo.Pagos (orden_id, monto, metodo, fecha, referencia) VALUES (2, 2369.00, 'TARJETA', DATEADD(DAY, -30, DATEADD(HOUR, 2, SYSDATETIME())), 'VISA-4521');
+INSERT INTO dbo.Facturas (orden_id, fecha_emision, subtotal, descuento, impuesto, total)
+VALUES (2, DATEADD(DAY, -30, DATEADD(HOUR, 2, SYSDATETIME())), 2060.00, 0, 309.00, 2369.00);
+UPDATE dbo.OrdenesTrabajo SET estado = 'ENTREGADA', fecha_entrega = DATEADD(DAY, -30, DATEADD(HOUR, 2, SYSDATETIME()))
+WHERE orden_id = 2;
 
 -- Orden 3: Toyota Hilux 2015, caso obligatorio de sustitución de motor (recibida)
-INSERT INTO dbo.OrdenesTrabajo (IdCliente, IdVehiculo, KilometrajeIngreso, Sintomas, DiagnosticoPreliminar, Estado)
+INSERT INTO dbo.OrdenesTrabajo (cliente_id, vehiculo_id, kilometraje_ingreso, sintomas, diagnostico_preliminar, estado)
 VALUES (1, 1, 185000, 'Sobrecalentamiento, pérdida de potencia y humo blanco', 'Posible daño interno del motor', 'RECIBIDA');
 GO
 
@@ -1485,40 +1579,41 @@ GO
    ===================================================================== */
 
 -- INNER JOIN: vehículos con su propietario
--- SELECT v.Placa, v.Marca, v.Modelo, v.Anio, c.Nombre + ' ' + c.Apellido AS Propietario
--- FROM dbo.Vehiculos v INNER JOIN dbo.Clientes c ON c.IdCliente = v.IdCliente;
+-- SELECT v.placa, v.marca, v.modelo, v.anio, c.nombre AS propietario
+-- FROM dbo.Vehiculos v INNER JOIN dbo.Clientes c ON c.cliente_id = v.cliente_id;
 
 -- LEFT JOIN: todos los clientes y cuántos vehículos tienen (incluye los que no tienen)
--- SELECT c.Nombre, c.Apellido, COUNT(v.IdVehiculo) AS Vehiculos
--- FROM dbo.Clientes c LEFT JOIN dbo.Vehiculos v ON v.IdCliente = c.IdCliente
--- GROUP BY c.Nombre, c.Apellido;
+-- SELECT c.nombre, COUNT(v.vehiculo_id) AS vehiculos
+-- FROM dbo.Clientes c LEFT JOIN dbo.Vehiculos v ON v.cliente_id = c.cliente_id
+-- GROUP BY c.nombre;
 
 -- GROUP BY + agregaciones: órdenes e ingresos por estado
--- SELECT Estado, COUNT(*) AS Ordenes, SUM(Total) AS Monto, SUM(Saldo) AS SaldoPendiente
--- FROM dbo.vw_OrdenesResumen GROUP BY Estado;
+-- SELECT estado, COUNT(*) AS ordenes, SUM(total) AS monto, SUM(saldo) AS saldo_pendiente
+-- FROM dbo.vw_OrdenesResumen GROUP BY estado;
 
 -- Subconsulta: repuestos más caros que el precio promedio
--- SELECT Codigo, Nombre, PrecioVenta FROM dbo.Repuestos
--- WHERE PrecioVenta > (SELECT AVG(PrecioVenta) FROM dbo.Repuestos);
+-- SELECT codigo, nombre, precio_venta FROM dbo.Repuestos
+-- WHERE precio_venta > (SELECT AVG(precio_venta) FROM dbo.Repuestos);
 
 -- Subconsulta: mecánicos que nunca han sido asignados
--- SELECT CodigoEmpleado, Nombre, Apellido FROM dbo.Mecanicos
--- WHERE IdMecanico NOT IN (SELECT IdMecanico FROM dbo.AsignacionMecanicos);
+-- SELECT codigo_empleado, nombre FROM dbo.Mecanicos
+-- WHERE mecanico_id NOT IN (SELECT mecanico_id FROM dbo.AsignacionMecanicos);
 
--- Motores compatibles y disponibles para la Hilux (IdVehiculo = 1)
--- SELECT m.IdMotor, m.NumeroSerie, m.ModeloMotor, m.Estado,
---        dbo.fn_MotorCompatible(m.IdMotor, 1) AS Compatible
+-- Motores compatibles y disponibles para la Hilux (vehiculo_id = 1)
+-- SELECT m.motor_id, m.numero_serie, m.modelo_motor, m.estado,
+--        dbo.fn_MotorCompatible(m.motor_id, 1) AS compatible
 -- FROM dbo.Motores m;
 
 -- Vistas
 -- SELECT * FROM dbo.vw_OrdenesResumen;
--- SELECT * FROM dbo.vw_InventarioBajoMinimo;
+-- SELECT * FROM dbo.vw_StockBajo;
+-- SELECT * FROM dbo.vw_SaldosFacturas;
 -- SELECT * FROM dbo.vw_ProductividadMecanicos;
--- SELECT * FROM dbo.vw_ServiciosMasSolicitados ORDER BY VecesSolicitado DESC;
--- EXEC dbo.sp_HistorialVehiculo @Placa = 'HCD 5678';
+-- SELECT * FROM dbo.vw_ServiciosMasSolicitados ORDER BY veces_solicitado DESC;
+-- EXEC dbo.sp_HistorialVehiculo @placa = 'HCD 5678';
 
 -- Procedimientos
--- DECLARE @Saldo DECIMAL(12,2);
--- EXEC dbo.sp_ConsumirRepuesto @IdOrden = 2, @IdRepuesto = 7, @Cantidad = 1, @ClaveOperacion = 'A1B2C3D4-0000-0000-0000-000000000001';
--- EXEC dbo.sp_RegistrarPago @IdOrden = 2, @Monto = 1000, @Metodo = 'EFECTIVO', @SaldoNuevo = @Saldo OUTPUT; SELECT @Saldo;
--- SELECT * FROM dbo.Auditoria ORDER BY Fecha DESC;
+-- DECLARE @saldo DECIMAL(12,2);
+-- EXEC dbo.sp_ConsumirRepuesto @orden_id = 1, @repuesto_id = 7, @cantidad = 1, @clave_operacion = 'A1B2C3D4-0000-0000-0000-000000000001';
+-- EXEC dbo.sp_RegistrarPago @orden_id = 1, @monto = 1000, @metodo = 'EFECTIVO', @saldo_nuevo = @saldo OUTPUT; SELECT @saldo;
+-- SELECT * FROM dbo.Auditoria ORDER BY fecha DESC;

@@ -43,12 +43,14 @@ import javax.swing.WindowConstants;
  */
 public class FrmMenuPrincipal extends JFrame {
 
-    private static final Color AZUL = new Color(0x1F, 0x38, 0x64);
-    private static final Color AZUL_CLARO = new Color(0xE8, 0xEE, 0xF7);
-    private static final Color GRIS_TEXTO = new Color(0x59, 0x59, 0x59);
-    private static final Color VERDE = new Color(0x2E, 0x7D, 0x32);
-    private static final Color ROJO = new Color(0xC6, 0x28, 0x28);
-    private static final Color FONDO = new Color(0xF4, 0xF6, 0xF9);
+    // Misma paleta de los demás formularios (vista.EstiloUI)
+    private static final Color AZUL = EstiloUI.AZUL_OSCURO;
+    private static final Color ACENTO = EstiloUI.PRIMARIO;
+    private static final Color HOVER = EstiloUI.VERDE_CLARO;
+    private static final Color GRIS_TEXTO = EstiloUI.TEXTO_SUAVE;
+    private static final Color VERDE = new Color(0x04, 0x78, 0x57);
+    private static final Color ROJO = EstiloUI.ERROR;
+    private static final Color FONDO = EstiloUI.FONDO_CLARO;
 
     /** Un módulo del menú: texto, formulario que abre y breve descripción. */
     private static final class Modulo {
@@ -164,11 +166,11 @@ public class FrmMenuPrincipal extends JFrame {
         encabezado.setBorder(BorderFactory.createEmptyBorder(18, 24, 18, 24));
 
         JLabel titulo = new JLabel("AutoTech Manager");
-        titulo.setFont(new Font("Segoe UI", Font.BOLD, 26));
+        titulo.setFont(EstiloUI.fuente(Font.BOLD, 26f));
         titulo.setForeground(Color.WHITE);
 
         JLabel subtitulo = new JLabel("AutoTech Motors S. de R.L.  ·  Gestión y control de servicios automotrices");
-        subtitulo.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        subtitulo.setFont(EstiloUI.fuente(Font.PLAIN, 14f));
         subtitulo.setForeground(new Color(0xC9, 0xD6, 0xEA));
 
         JPanel textos = new JPanel();
@@ -189,7 +191,7 @@ public class FrmMenuPrincipal extends JFrame {
 
         for (Map.Entry<String, List<Modulo>> seccion : MODULOS.entrySet()) {
             JLabel lbl = new JLabel(seccion.getKey());
-            lbl.setFont(new Font("Segoe UI", Font.BOLD, 15));
+            lbl.setFont(EstiloUI.fuente(Font.BOLD, 15f));
             lbl.setForeground(AZUL);
             lbl.setBorder(BorderFactory.createEmptyBorder(14, 2, 6, 0));
             JPanel fila = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
@@ -226,26 +228,26 @@ public class FrmMenuPrincipal extends JFrame {
                 : "<br><span style='color:#B26A00;font-size:9px'>PENDIENTE</span>";
         JButton tarjeta = new JButton("<html><div style='width:170px'>"
                 + "<b style='font-size:12px'>" + m.titulo + "</b><br>"
-                + "<span style='color:#595959'>" + m.descripcion + "</span>" + estado
+                + "<span style='color:#6B7280'>" + m.descripcion + "</span>" + estado
                 + "</div></html>");
         tarjeta.setHorizontalAlignment(SwingConstants.LEFT);
         tarjeta.setVerticalAlignment(SwingConstants.TOP);
-        tarjeta.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        tarjeta.setFont(EstiloUI.fuente(Font.PLAIN, 12f));
         tarjeta.setFocusPainted(false);
         tarjeta.setBackground(Color.WHITE);
         tarjeta.setPreferredSize(new Dimension(220, 84));
         tarjeta.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         tarjeta.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 4, 0, 0, disponible ? AZUL : new Color(0xBD, 0xBD, 0xBD)),
+                BorderFactory.createMatteBorder(0, 4, 0, 0, disponible ? ACENTO : EstiloUI.BORDE),
                 BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(new Color(0xD9, 0xDE, 0xE6)),
+                        BorderFactory.createLineBorder(EstiloUI.BORDE),
                         BorderFactory.createEmptyBorder(10, 12, 10, 12))));
         tarjeta.setToolTipText(disponible ? "Abrir " + m.titulo : "Módulo en desarrollo (vista." + m.clase + ")");
         tarjeta.addActionListener(e -> Navegador.abrir(this, m.clase, m.titulo));
         tarjeta.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override
             public void mouseEntered(java.awt.event.MouseEvent e) {
-                tarjeta.setBackground(AZUL_CLARO);
+                tarjeta.setBackground(HOVER);
             }
 
             @Override
@@ -261,11 +263,11 @@ public class FrmMenuPrincipal extends JFrame {
         JPanel barra = new JPanel(new BorderLayout());
         barra.setBackground(Color.WHITE);
         barra.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(0xD9, 0xDE, 0xE6)),
+                BorderFactory.createMatteBorder(1, 0, 0, 0, EstiloUI.BORDE),
                 BorderFactory.createEmptyBorder(6, 16, 6, 16)));
-        lblConexion.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblConexion.setFont(EstiloUI.fuente(Font.PLAIN, 12f));
         lblConexion.setForeground(GRIS_TEXTO);
-        lblReloj.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        lblReloj.setFont(EstiloUI.fuente(Font.PLAIN, 12f));
         lblReloj.setForeground(GRIS_TEXTO);
         barra.add(lblConexion, BorderLayout.WEST);
         barra.add(lblReloj, BorderLayout.EAST);

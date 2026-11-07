@@ -6,7 +6,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Motor con trazabilidad por número de serie (módulo 7). */
 public class Motor extends EntidadBase {
 
     private String numeroSerie;
@@ -28,7 +27,6 @@ public class Motor extends EntidadBase {
         return activo && estado == EstadoMotor.DISPONIBLE;
     }
 
-    /** Compatible si alguna regla coincide con marca, modelo, año y combustible del vehículo. */
     public boolean esCompatibleCon(Vehiculo v) {
         if (combustible != null && v.getCombustible() != null && combustible != v.getCombustible()) {
             return false;

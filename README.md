@@ -10,7 +10,7 @@ Proyecto del Segundo Parcial de **Programación Avanzada II**.
 
 - Java (Maven, NetBeans) con interfaz gráfica Swing
 - JDBC con Microsoft SQL Server (Azure SQL)
-- Arquitectura por capas: presentación (`vista`), negocio (`negocio`) y datos (`dao`, `conexion`)
+- Arquitectura por capas: presentación (`vista`), negocio (`servicio`) y datos (`dao`, `conexion`)
 
 ## Cómo ejecutarlo
 
@@ -26,12 +26,12 @@ docs/       Diagrama entidad-relación, diagramas UML y arquitectura
 src/main/java
 ├── conexion      ConexionDB
 ├── dao           Contratos de persistencia (y dao/impl con JDBC)
-├── negocio       Reglas de negocio y transacciones
-├── hilos         Procesamiento en segundo plano
+├── servicio      Reglas de negocio y transacciones
+├── hilos         Monitor de stock y demostración de concurrencia
 ├── modelo        Entidades y enums
 ├── excepciones   Excepciones del sistema
 ├── util          Configuración y validaciones
-└── vista         Menú principal y formularios
+└── vista         Menú principal, formularios y estilos (EstiloUI)
 ```
 
 ## Integrantes

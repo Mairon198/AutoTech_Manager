@@ -3,7 +3,6 @@ package modelo;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/** Repuesto utilizado en una orden. El registro se hace junto con el descuento de inventario en una transacción. */
 public class ConsumoRepuesto extends EntidadBase {
 
     private OrdenTrabajo orden;

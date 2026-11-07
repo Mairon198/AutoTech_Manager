@@ -3,7 +3,6 @@ package modelo;
 import modelo.enums.EstadoActividad;
 import java.time.LocalDateTime;
 
-/** Actividad realizada por un mecánico dentro de una orden (ej.: desmontaje, instalación, pruebas). */
 public class ActividadTrabajo extends EntidadBase {
 
     private OrdenTrabajo orden;

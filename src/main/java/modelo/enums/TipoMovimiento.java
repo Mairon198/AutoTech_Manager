@@ -1,6 +1,5 @@
 package modelo.enums;
 
-/** Movimientos de inventario. */
 public enum TipoMovimiento {
     ENTRADA("Entrada"),
     SALIDA("Salida"),

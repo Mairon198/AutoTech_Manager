@@ -1,6 +1,5 @@
 package excepciones;
 
-/** El motor seleccionado no es compatible, no está disponible o le faltan datos. */
 public class MotorIncompatibleException extends AutoTechException {
 
     public MotorIncompatibleException(String mensaje) {

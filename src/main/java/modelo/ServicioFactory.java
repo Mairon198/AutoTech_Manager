@@ -2,7 +2,6 @@ package modelo;
 
 import modelo.enums.NivelComplejidad;
 
-/** Crea la subclase correcta de Servicio según el nivel guardado en la BD. */
 public final class ServicioFactory {
 
     private ServicioFactory() {
