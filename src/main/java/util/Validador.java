@@ -41,6 +41,20 @@ public final class Validador {
         }
     }
 
+    /** Deja la placa como la guarda la BD: mayúsculas y un espacio ("abc1234" -> "ABC 1234"). */
+    public static String normalizarPlaca(String valor) {
+        if (valor == null) {
+            return null;
+        }
+        String p = valor.trim().toUpperCase().replace(" ", "");
+        return p.length() == 7 ? p.substring(0, 3) + " " + p.substring(3) : p;
+    }
+
+    /** VIN en mayúsculas y sin espacios. */
+    public static String normalizarVin(String valor) {
+        return valor == null ? null : valor.trim().toUpperCase().replace(" ", "");
+    }
+
     public static void anioVehiculo(int anio) throws ValidacionException {
         int max = Year.now().getValue() + 1;
         if (anio < 1950 || anio > max) {
