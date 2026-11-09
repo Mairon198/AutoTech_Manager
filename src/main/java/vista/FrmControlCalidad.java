@@ -1,130 +1,212 @@
 package vista;
 
+import hilos.ProcesadorOrdenWorker;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.util.ArrayList;
+import java.util.List;
+import javax.swing.ButtonGroup;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.JRadioButton;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
+import modelo.Mecanico;
+import modelo.OrdenResumen;
+import modelo.enums.EstadoOrden;
+import servicio.MecanicoService;
+
 /**
- * Formulario editable en el diseñador GUI de NetBeans.
- * Los botones son una base visual: conectar Guardar con el servicio/DAO correspondiente.
+ * Control de calidad antes de la entrega. Obligatorio para servicios de nivel 3 a 5:
+ * sin un control aprobado la base de datos no permite finalizar la orden.
  */
-public class FrmControlCalidad extends javax.swing.JFrame {
+public class FrmControlCalidad extends FrmBaseOrden {
+
+    private static final String[] PUNTOS = {
+        "Sin fugas de aceite, refrigerante ni combustible",
+        "Sin ruidos ni vibraciones anormales",
+        "Sin códigos de falla ni testigos encendidos en el tablero",
+        "Niveles de fluidos correctos",
+        "Torque de tornillería y conexiones verificados",
+        "Prueba de ruta satisfactoria",
+        "Vehículo limpio y sin daños nuevos"
+    };
+
+    private final MecanicoService mecanicos = new MecanicoService();
+    private final JComboBox<Mecanico> cmbInspector = new JComboBox<>();
+    private final List<JCheckBox> checks = new ArrayList<>();
+    private final JRadioButton rbAprobado = new JRadioButton("Aprobado");
+    private final JRadioButton rbRechazado = new JRadioButton("No aprobado (vuelve a reparación)");
+    private final JTextArea txtObs = area(3);
+    private final JTable tblControles = tabla();
+
+    // Cierre de la orden (hilo en segundo plano)
+    private final JButton btnCerrar = EstiloUI.botonPrimario("Cerrar orden y facturar");
+    private final JButton btnIrPagos = EstiloUI.botonSecundario("Ir a Pagos");
+    private final JProgressBar barra = new JProgressBar(0, 100);
+    private final JLabel lblProceso = nota("Disponible cuando la orden esté en control de calidad.");
+    private final JTextArea txtResultado = area(4);
+    private boolean procesando;
 
     public FrmControlCalidad() {
-        initComponents();
-        btnLimpiar.addActionListener(evt -> limpiarCampos());
-        btnGuardar.addActionListener(evt -> guardarFormulario());
-        setSize(880, 460);
-        setLocationRelativeTo(null);
-        panelCampos.setBorder(javax.swing.BorderFactory.createEmptyBorder(18, 20, 18, 20));
-    }
+        super("Control de calidad", "CONTROL DE CALIDAD",
+                "Verificación final (obligatoria en niveles 3 a 5) y cierre de la orden con garantía y factura", true);
 
-    @SuppressWarnings("unchecked")
-    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
-    private void initComponents() {
-        lblTitulo = new javax.swing.JLabel();
-        scrollCampos = new javax.swing.JScrollPane();
-        panelCampos = new javax.swing.JPanel();
-        lblCampo1 = new javax.swing.JLabel();
-        txtCampo1 = new javax.swing.JTextField();
-        lblCampo2 = new javax.swing.JLabel();
-        txtCampo2 = new javax.swing.JTextField();
-        lblCampo3 = new javax.swing.JLabel();
-        txtCampo3 = new javax.swing.JTextField();
-        lblCampo4 = new javax.swing.JLabel();
-        txtCampo4 = new javax.swing.JTextField();
-        lblCampo5 = new javax.swing.JLabel();
-        txtCampo5 = new javax.swing.JTextField();
-        panelBotones = new javax.swing.JPanel();
-        btnLimpiar = new javax.swing.JButton();
-        btnGuardar = new javax.swing.JButton();
+        JPanel lista = new JPanel(new GridLayout(0, 1, 0, 2));
+        lista.setOpaque(false);
+        for (String p : PUNTOS) {
+            JCheckBox c = EstiloUI.casilla(new JCheckBox(p));
+            checks.add(c);
+            lista.add(c);
+        }
+        JButton todos = EstiloUI.botonSecundario("Marcar todo");
+        todos.addActionListener(e -> checks.forEach(c -> c.setSelected(true)));
+        ButtonGroup g = new ButtonGroup();
+        g.add(rbAprobado);
+        g.add(rbRechazado);
+        rbAprobado.setOpaque(false);
+        rbRechazado.setOpaque(false);
+        rbAprobado.setSelected(true);
 
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle("AutoTech Manager - Control de calidad");
-        getContentPane().setLayout(new java.awt.BorderLayout());
-
-        lblTitulo.setText("Control de calidad");
-        lblTitulo.setFont(lblTitulo.getFont().deriveFont(java.awt.Font.BOLD, 21f));
-        lblTitulo.setBorder(javax.swing.BorderFactory.createEmptyBorder(14, 20, 12, 20));
-        getContentPane().add(lblTitulo, java.awt.BorderLayout.NORTH);
-
-        panelCampos.setLayout(new java.awt.GridLayout(5, 2, 12, 10));
-        lblCampo1.setText("ID de orden");
-        panelCampos.add(lblCampo1);
-        txtCampo1.setColumns(24);
-        panelCampos.add(txtCampo1);
-        lblCampo2.setText("ID del inspector");
-        panelCampos.add(lblCampo2);
-        txtCampo2.setColumns(24);
-        panelCampos.add(txtCampo2);
-        lblCampo3.setText("Checklist de revisión");
-        panelCampos.add(lblCampo3);
-        txtCampo3.setColumns(24);
-        panelCampos.add(txtCampo3);
-        lblCampo4.setText("¿Aprobado?");
-        panelCampos.add(lblCampo4);
-        txtCampo4.setColumns(24);
-        panelCampos.add(txtCampo4);
-        lblCampo5.setText("Observaciones");
-        panelCampos.add(lblCampo5);
-        txtCampo5.setColumns(24);
-        panelCampos.add(txtCampo5);
-        scrollCampos.setViewportView(panelCampos);
-        getContentPane().add(scrollCampos, java.awt.BorderLayout.CENTER);
-
-        panelBotones.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
-        btnLimpiar.setText("Limpiar");
-        panelBotones.add(btnLimpiar);
-        btnGuardar.setText("Validar / Guardar");
-        panelBotones.add(btnGuardar);
-        getContentPane().add(panelBotones, java.awt.BorderLayout.SOUTH);
-
-        pack();
-    }//GEN-END:initComponents
-
-    private void limpiarCampos() {
-        txtCampo1.setText("");
-        txtCampo2.setText("");
-        txtCampo3.setText("");
-        txtCampo4.setText("");
-        txtCampo5.setText("");
-    }
-
-    private void guardarFormulario() {
-        
-        String[] campos = new String[]{txtCampo1.getText(), txtCampo2.getText(), txtCampo3.getText(), txtCampo4.getText(), txtCampo5.getText()};
-        btnGuardar.setEnabled(false);
-        new javax.swing.SwingWorker<String,Void>() {
-            protected String doInBackground() throws Exception { return GuardarFormularios.control(campos); }
-            protected void done() {
-                btnGuardar.setEnabled(true);
-                try {
-                    String mensaje=get();
-                    javax.swing.JOptionPane.showMessageDialog(FrmControlCalidad.this, mensaje, "AutoTech Manager",javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                } catch(Exception err) {
-                    Throwable causa=err instanceof java.util.concurrent.ExecutionException && err.getCause()!=null?err.getCause():err;
-                    javax.swing.JOptionPane.showMessageDialog(FrmControlCalidad.this, causa.getMessage(), "Error de guardado",javax.swing.JOptionPane.ERROR_MESSAGE);
-                }
+        JButton enviar = EstiloUI.botonSecundario("Enviar orden a control de calidad");
+        enviar.addActionListener(e -> {
+            if (ejecutar(() -> ordenes.cambiarEstado(orden(), EstadoOrden.EN_CONTROL_CALIDAD))) {
+                recargar();
             }
-        }.execute();
+        });
+        JButton registrar = EstiloUI.botonPrimario("Registrar control");
+        registrar.addActionListener(e -> registrar());
+
+        Formulario f = new Formulario("Inspección")
+                .ancho(botones(enviar))
+                .ancho(nota("Use el botón de arriba cuando la reparación termine (orden <b>En reparación</b>)."))
+                .campo("Inspector", cmbInspector)
+                .ancho(lista)
+                .ancho(botones(todos))
+                .ancho(botones(rbAprobado, rbRechazado))
+                .campo("Observaciones", txtObs)
+                .ancho(botones(registrar))
+                .ancho(nota("Al aprobar, cierre la orden con <b>Cerrar orden y facturar</b> (a la derecha)."))
+                .relleno();
+        JScrollPane izq = new JScrollPane(f);
+        izq.setBorder(null);
+        izq.setPreferredSize(new Dimension(500, 0));
+        izq.getVerticalScrollBar().setUnitIncrement(16);
+
+        JPanel p = new JPanel(new BorderLayout(10, 0));
+        p.setOpaque(false);
+        p.add(izq, BorderLayout.WEST);
+        JPanel der = new JPanel(new BorderLayout(0, 8));
+        der.setOpaque(false);
+        der.add(conTitulo(tblControles, "Controles registrados"), BorderLayout.CENTER);
+        der.add(panelCierre(), BorderLayout.SOUTH);
+        p.add(der, BorderLayout.CENTER);
+        setContenido(p);
+
+        ejecutar(() -> llenarCombo(cmbInspector, mecanicos.listarActivos()));
+        cargarOrdenes(null);
     }
 
-        public static void main(String[] args) {
-        java.awt.EventQueue.invokeLater(() -> new FrmControlCalidad().setVisible(true));
+    private JPanel panelCierre() {
+        barra.setStringPainted(true);
+        barra.setPreferredSize(new Dimension(300, 24));
+        txtResultado.setEditable(false);
+        txtResultado.setBackground(EstiloUI.FONDO_CLARO);
+        JScrollPane res = new JScrollPane(txtResultado);
+        res.setBorder(javax.swing.BorderFactory.createLineBorder(EstiloUI.BORDE));
+        res.setPreferredSize(new Dimension(300, 82));
+        btnCerrar.addActionListener(e -> cerrarOrden());
+        btnIrPagos.addActionListener(e -> irAPagos());
+        btnIrPagos.setVisible(false);
+        Formulario f = new Formulario("Cierre de la orden")
+                .ancho(nota("Calcula la garantía según el nivel de los servicios y, en una sola transacción, "
+                        + "genera la garantía, finaliza la orden y emite la factura. La ventana sigue respondiendo "
+                        + "mientras el hilo trabaja."))
+                .ancho(botones(btnCerrar, btnIrPagos))
+                .ancho(barra)
+                .ancho(lblProceso)
+                .ancho(res);
+        return f;
     }
 
-    // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton btnGuardar;
-    private javax.swing.JButton btnLimpiar;
-    private javax.swing.JLabel lblCampo1;
-    private javax.swing.JTextField txtCampo1;
-    private javax.swing.JLabel lblCampo2;
-    private javax.swing.JTextField txtCampo2;
-    private javax.swing.JLabel lblCampo3;
-    private javax.swing.JTextField txtCampo3;
-    private javax.swing.JLabel lblCampo4;
-    private javax.swing.JTextField txtCampo4;
-    private javax.swing.JLabel lblCampo5;
-    private javax.swing.JTextField txtCampo5;
-    private javax.swing.JLabel lblTitulo;
-    private javax.swing.JPanel panelBotones;
-    private javax.swing.JPanel panelCampos;
-    private javax.swing.JScrollPane scrollCampos;
-    // End of variables declaration//GEN-END:variables
+    private void cerrarOrden() {
+        OrdenResumen o = orden();
+        if (o == null || o.getEstado() != EstadoOrden.EN_CONTROL_CALIDAD) {
+            return;
+        }
+        procesando = true;
+        btnCerrar.setEnabled(false);
+        btnIrPagos.setVisible(false);
+        txtResultado.setText("");
+        barra.setValue(0);
+        int id = o.getOrdenId();
+        new ProcesadorOrdenWorker(id, barra, lblProceso, resultado -> {
+            procesando = false;
+            boolean error = resultado.startsWith("ERROR");
+            txtResultado.setText(resultado);
+            txtResultado.setForeground(error ? EstiloUI.ERROR : EstiloUI.TEXTO);
+            cargarOrdenes(id);
+            btnIrPagos.setVisible(!error);
+        }).execute();
+    }
+
+    private void irAPagos() {
+        Integer id = idOrden();
+        java.awt.Window w = Navegador.abrir(this, "FrmPagosFacturacion", "Pagos y facturación");
+        if (w instanceof FrmBaseOrden f && id != null) {
+            f.mostrarOrden(id);
+        }
+    }
+
+    private void registrar() {
+        List<String> verificados = new ArrayList<>();
+        for (JCheckBox c : checks) {
+            if (c.isSelected()) {
+                verificados.add(c.getText());
+            }
+        }
+        boolean aprobado = rbAprobado.isSelected();
+        if (aprobado && verificados.size() < PUNTOS.length) {
+            avisar("Para aprobar deben estar verificados todos los puntos de la lista.");
+            return;
+        }
+        OrdenResumen o = orden();
+        ejecutar(() -> {
+            ordenes.registrarControl(o, (Mecanico) cmbInspector.getSelectedItem(), aprobado, verificados, txtObs.getText());
+            if (!aprobado) {
+                ordenes.cambiarEstado(o, EstadoOrden.EN_REPARACION);
+            }
+            checks.forEach(c -> c.setSelected(false));
+            txtObs.setText("");
+            recargar();
+            avisar(aprobado ? "Control aprobado. Ya puede cerrar la orden con \"Cerrar orden y facturar\"."
+                    : "Control no aprobado: la orden volvió a reparación.");
+        });
+    }
+
+    @Override
+    protected void ordenSeleccionada(OrdenResumen o) {
+        boolean puedeCerrar = o != null && o.getEstado() == EstadoOrden.EN_CONTROL_CALIDAD;
+        if (!procesando) {
+            btnCerrar.setEnabled(puedeCerrar);
+            if (o == null || (o.getEstado() != EstadoOrden.FINALIZADA && o.getEstado() != EstadoOrden.ENTREGADA)) {
+                btnIrPagos.setVisible(false);
+                txtResultado.setText("");
+                barra.setValue(0);
+                lblProceso.setText(puedeCerrar ? "Lista para cerrar (si el control obligatorio está aprobado)."
+                        : "Disponible cuando la orden esté en control de calidad.");
+            }
+        }
+        if (o == null) {
+            limpiar(tblControles);
+            return;
+        }
+        ejecutar(() -> llenar(tblControles, ordenes.controles(o.getOrdenId())));
+    }
 }

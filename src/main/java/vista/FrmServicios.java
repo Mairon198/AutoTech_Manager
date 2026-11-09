@@ -51,7 +51,7 @@ public class FrmServicios extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
-        JPanel pnlHeader = new JPanel(new BorderLayout());
+        JPanel pnlHeader = EstiloUI.panelEncabezado();
         pnlHeader.setBackground(EstiloUI.AZUL_OSCURO);
         pnlHeader.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
@@ -62,7 +62,7 @@ public class FrmServicios extends JFrame {
 
         JLabel lblSub = new JLabel("Polimorfismo aplicado: recargo técnico, días de garantía y control de calidad según nivel");
         lblSub.setFont(EstiloUI.fuente(Font.PLAIN, 12f));
-        lblSub.setForeground(new Color(0xD1D5DB));
+        lblSub.setForeground(EstiloUI.TEXTO_ENCABEZADO);
         pnlHeader.add(lblSub, BorderLayout.SOUTH);
 
         add(pnlHeader, BorderLayout.NORTH);
@@ -72,7 +72,6 @@ public class FrmServicios extends JFrame {
                 BorderFactory.createEmptyBorder(10, 15, 10, 10),
                 BorderFactory.createTitledBorder("Parámetros del Servicio")
         ));
-        pnlForm.setPreferredSize(new Dimension(420, 0));
 
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(3, 4, 3, 4);
@@ -113,8 +112,11 @@ public class FrmServicios extends JFrame {
 
         modeloListaRepuestos = new DefaultListModel<>();
         lstRepuestosAsociados = new JList<>(modeloListaRepuestos);
+        lstRepuestosAsociados.setVisibleRowCount(4);
         JScrollPane scrollRep = new JScrollPane(lstRepuestosAsociados);
-        scrollRep.setPreferredSize(new Dimension(0, 75));
+        scrollRep.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollRep.setPreferredSize(new Dimension(360, 95));
+        scrollRep.setMinimumSize(new Dimension(200, 95));
 
         int row = 0;
         agregarFilaForm(pnlForm, gbc, row++, "ID:", txtId);
@@ -128,13 +130,28 @@ public class FrmServicios extends JFrame {
         agregarFilaForm(pnlForm, gbc, row++, "Garantía Otorgada:", lblGarantia);
         agregarFilaForm(pnlForm, gbc, row++, "Control Calidad Oblig.:", lblRequiereQC);
         agregarFilaForm(pnlForm, gbc, row++, "", chkActivo);
-        agregarFilaForm(pnlForm, gbc, row++, "Repuestos Sugeridos:", scrollRep);
+        // La lista ocupa las dos columnas para que se lea completa
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        gbc.gridwidth = 2;
+        JLabel lblRepuestos = new JLabel("Repuestos Sugeridos:");
+        lblRepuestos.setFont(EstiloUI.fuente(Font.BOLD, 12f));
+        pnlForm.add(lblRepuestos, gbc);
+        gbc.gridy = row++;
+        gbc.fill = GridBagConstraints.BOTH;
+        pnlForm.add(scrollRep, gbc);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        JPanel pnlBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+        JPanel pnlBotones = new JPanel(new GridLayout(0, 3, 6, 6));   // todos los botones visibles siempre
         JButton btnNuevo = EstiloUI.botonSecundario("Nuevo");
         JButton btnGuardar = EstiloUI.botonPrimario("Guardar");
         JButton btnAsociarRep = EstiloUI.botonSecundario("+ Repuesto");
         JButton btnDesactivar = EstiloUI.botonPeligro("Desactivar");
+        JButton btnEliminar = EstiloUI.botonPeligro("Eliminar");
+        btnEliminar.addActionListener(e -> Eliminador.eliminar(this, modelo.enums.RegistroEliminable.SERVICIO, txtId.getText(), () -> {
+            limpiarFormulario();
+            cargarServicios(cmbFiltroNivel.getSelectedIndex());
+        }));
 
         btnNuevo.addActionListener(e -> limpiarFormulario());
         btnGuardar.addActionListener(e -> guardarServicio());
@@ -145,13 +162,20 @@ public class FrmServicios extends JFrame {
         pnlBotones.add(btnGuardar);
         pnlBotones.add(btnAsociarRep);
         pnlBotones.add(btnDesactivar);
+        pnlBotones.add(btnEliminar);
 
         gbc.gridx = 0;
         gbc.gridy = row;
         gbc.gridwidth = 2;
         pnlForm.add(pnlBotones, gbc);
 
-        add(pnlForm, BorderLayout.WEST);
+        // Si la ventana es baja, el formulario se desplaza en lugar de aplastar sus campos
+        JScrollPane scrollForm = new JScrollPane(pnlForm,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scrollForm.setBorder(null);
+        scrollForm.getVerticalScrollBar().setUnitIncrement(16);
+        scrollForm.setPreferredSize(new Dimension(440, 0));
+        add(scrollForm, BorderLayout.WEST);
 
         JPanel pnlCentral = new JPanel(new BorderLayout(8, 8));
         pnlCentral.setBorder(BorderFactory.createEmptyBorder(10, 5, 15, 15));

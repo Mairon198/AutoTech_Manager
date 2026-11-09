@@ -1,184 +1,284 @@
 package vista;
 
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.math.BigDecimal;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.table.DefaultTableModel;
+import modelo.ConfiguracionImpuesto;
+import modelo.DetallePresupuesto;
+import modelo.Mecanico;
+import modelo.OrdenResumen;
+import modelo.Presupuesto;
+import modelo.enums.EstadoOrden;
+import servicio.MecanicoService;
+import servicio.PresupuestoService;
+
 /**
- * Formulario editable en el diseñador GUI de NetBeans.
- * Los botones son una base visual: conectar Guardar con el servicio/DAO correspondiente.
+ * Módulo 6: diagnóstico técnico con evidencias y presupuesto desglosado
+ * (mano de obra, repuestos, horas, impuestos y descuento autorizado) con la
+ * aprobación o el rechazo del cliente.
  */
-public class FrmDiagnosticoPresupuesto extends javax.swing.JFrame {
+public class FrmDiagnosticoPresupuesto extends FrmBaseOrden {
+
+    private final PresupuestoService presupuestos = new PresupuestoService();
+    private final MecanicoService mecanicos = new MecanicoService();
+
+    // Diagnóstico
+    private final JComboBox<Mecanico> cmbMecanico = new JComboBox<>();
+    private final JTextArea txtDescripcion = area(3);
+    private final JTextArea txtCausa = area(2);
+    private final JTextArea txtRecomendacion = area(2);
+    private final JCheckBox chkMotor = EstiloUI.casilla(new JCheckBox("Requiere cambio de motor"));
+    private final JComboBox<String> cmbTipoEvidencia = new JComboBox<>(new String[]{
+        "Prueba de compresión", "Escáner OBD-II", "Medición", "Fotografía", "Prueba de ruta", "Inspección visual"});
+    private final JTextField txtEvidencia = EstiloUI.campoCompacto(new JTextField());
+    private final JTextField txtValor = EstiloUI.campoCompacto(new JTextField());
+    private final JTable tblDiagnosticos = tabla();
+    private final JTable tblEvidencias = tabla();
+
+    // Presupuesto
+    private final JComboBox<ConfiguracionImpuesto> cmbImpuesto = new JComboBox<>();
+    private final JSpinner spnDescuento = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1_000_000.0, 50.0));
+    private final JTextField txtAutoriza = EstiloUI.campoCompacto(new JTextField());
+    private final JTable tblPropuesta = tabla();
+    private final JLabel lblTotales = new JLabel(" ");
+    private final JTextField txtRespuesta = EstiloUI.campoCompacto(new JTextField());
+    private final JTable tblPresupuestos = tabla();
+    private final JTable tblLineas = tabla();
+    private Presupuesto propuesta;
 
     public FrmDiagnosticoPresupuesto() {
-        initComponents();
-        btnLimpiar.addActionListener(evt -> limpiarCampos());
-        btnGuardar.addActionListener(evt -> guardarFormulario());
-        setSize(880, 657);
-        setLocationRelativeTo(null);
-        panelCampos.setBorder(javax.swing.BorderFactory.createEmptyBorder(18, 20, 18, 20));
+        super("Diagnóstico y presupuesto", "MÓDULO 6: DIAGNÓSTICO TÉCNICO Y PRESUPUESTO",
+                "Evaluación con evidencias, presupuesto desglosado y aprobación del cliente", true);
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.setFont(EstiloUI.fuente(Font.BOLD, 13f));
+        tabs.addTab("1. Diagnóstico y evidencias", panelDiagnostico());
+        tabs.addTab("2. Presupuesto", panelPresupuesto());
+        tabs.addTab("3. Aprobación del cliente", panelAprobacion());
+        setContenido(tabs);
+        ejecutar(() -> {
+            llenarCombo(cmbMecanico, mecanicos.listarActivos());
+            llenarCombo(cmbImpuesto, presupuestos.impuestos());
+        });
+        mostrarCon(cmbImpuesto, i -> i.getNombre() + " (" + i.getPorcentaje().stripTrailingZeros().toPlainString() + " %)");
+        cargarOrdenes(null);
     }
 
-    @SuppressWarnings("unchecked")
-    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
-    private void initComponents() {
-        lblTitulo = new javax.swing.JLabel();
-        scrollCampos = new javax.swing.JScrollPane();
-        panelCampos = new javax.swing.JPanel();
-        lblCampo1 = new javax.swing.JLabel();
-        txtCampo1 = new javax.swing.JTextField();
-        lblCampo2 = new javax.swing.JLabel();
-        txtCampo2 = new javax.swing.JTextField();
-        lblCampo3 = new javax.swing.JLabel();
-        txtCampo3 = new javax.swing.JTextField();
-        lblCampo4 = new javax.swing.JLabel();
-        txtCampo4 = new javax.swing.JTextField();
-        lblCampo5 = new javax.swing.JLabel();
-        txtCampo5 = new javax.swing.JTextField();
-        lblCampo6 = new javax.swing.JLabel();
-        txtCampo6 = new javax.swing.JTextField();
-        lblCampo7 = new javax.swing.JLabel();
-        txtCampo7 = new javax.swing.JTextField();
-        lblCampo8 = new javax.swing.JLabel();
-        txtCampo8 = new javax.swing.JTextField();
-        lblCampo9 = new javax.swing.JLabel();
-        txtCampo9 = new javax.swing.JTextField();
-        lblCampo10 = new javax.swing.JLabel();
-        txtCampo10 = new javax.swing.JTextField();
-        lblCampo11 = new javax.swing.JLabel();
-        txtCampo11 = new javax.swing.JTextField();
-        panelBotones = new javax.swing.JPanel();
-        btnLimpiar = new javax.swing.JButton();
-        btnGuardar = new javax.swing.JButton();
+    // ================================================================== paneles
 
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle("AutoTech Manager - Diagnóstico y presupuesto");
-        getContentPane().setLayout(new java.awt.BorderLayout());
+    private JPanel panelDiagnostico() {
+        cmbTipoEvidencia.setEditable(true);
+        JButton guardar = EstiloUI.botonPrimario("Registrar diagnóstico");
+        guardar.addActionListener(e -> registrarDiagnostico());
+        JButton evidencia = EstiloUI.botonSecundario("Agregar evidencia");
+        evidencia.addActionListener(e -> {
+            if (ejecutar(() -> presupuestos.agregarEvidencia(orden(), (String) cmbTipoEvidencia.getSelectedItem(),
+                    txtEvidencia.getText(), txtValor.getText()))) {
+                txtEvidencia.setText("");
+                txtValor.setText("");
+                ordenSeleccionada(orden());
+            }
+        });
+        Formulario f = new Formulario("Diagnóstico técnico")
+                .campo("Mecánico", cmbMecanico)
+                .campo("Descripción", txtDescripcion)
+                .campo("Causa raíz", txtCausa)
+                .campo("Recomendación", txtRecomendacion)
+                .ancho(chkMotor)
+                .ancho(botones(guardar))
+                .ancho(new JLabel(" "))
+                .campo("Tipo de evidencia", cmbTipoEvidencia)
+                .campo("Descripción", txtEvidencia)
+                .campo("Valor medido", txtValor)
+                .ancho(botones(evidencia))
+                .ancho(nota("Si la orden está <b>Recibida</b>, al registrar el diagnóstico pasa a <b>En diagnóstico</b>. "
+                        + "Los servicios de nivel 3 a 5 exigen diagnóstico antes del presupuesto."))
+                .relleno();
+        JScrollPane izq = new JScrollPane(f);
+        izq.setBorder(null);
+        izq.setPreferredSize(new Dimension(450, 0));
+        izq.getVerticalScrollBar().setUnitIncrement(16);
 
-        lblTitulo.setText("Diagnóstico y presupuesto");
-        lblTitulo.setFont(lblTitulo.getFont().deriveFont(java.awt.Font.BOLD, 21f));
-        lblTitulo.setBorder(javax.swing.BorderFactory.createEmptyBorder(14, 20, 12, 20));
-        getContentPane().add(lblTitulo, java.awt.BorderLayout.NORTH);
-
-        panelCampos.setLayout(new java.awt.GridLayout(11, 2, 12, 10));
-        lblCampo1.setText("ID de orden");
-        panelCampos.add(lblCampo1);
-        txtCampo1.setColumns(24);
-        panelCampos.add(txtCampo1);
-        lblCampo2.setText("ID del mecánico");
-        panelCampos.add(lblCampo2);
-        txtCampo2.setColumns(24);
-        panelCampos.add(txtCampo2);
-        lblCampo3.setText("Descripción del diagnóstico");
-        panelCampos.add(lblCampo3);
-        txtCampo3.setColumns(24);
-        panelCampos.add(txtCampo3);
-        lblCampo4.setText("Causa raíz");
-        panelCampos.add(lblCampo4);
-        txtCampo4.setColumns(24);
-        panelCampos.add(txtCampo4);
-        lblCampo5.setText("Recomendación");
-        panelCampos.add(lblCampo5);
-        txtCampo5.setColumns(24);
-        panelCampos.add(txtCampo5);
-        lblCampo6.setText("¿Requiere cambio de motor?");
-        panelCampos.add(lblCampo6);
-        txtCampo6.setColumns(24);
-        panelCampos.add(txtCampo6);
-        lblCampo7.setText("Subtotal mano de obra");
-        panelCampos.add(lblCampo7);
-        txtCampo7.setColumns(24);
-        panelCampos.add(txtCampo7);
-        lblCampo8.setText("Subtotal repuestos");
-        panelCampos.add(lblCampo8);
-        txtCampo8.setColumns(24);
-        panelCampos.add(txtCampo8);
-        lblCampo9.setText("Descuento");
-        panelCampos.add(lblCampo9);
-        txtCampo9.setColumns(24);
-        panelCampos.add(txtCampo9);
-        lblCampo10.setText("Impuesto (%)");
-        panelCampos.add(lblCampo10);
-        txtCampo10.setColumns(24);
-        panelCampos.add(txtCampo10);
-        lblCampo11.setText("Autorizado por");
-        panelCampos.add(lblCampo11);
-        txtCampo11.setColumns(24);
-        panelCampos.add(txtCampo11);
-        scrollCampos.setViewportView(panelCampos);
-        getContentPane().add(scrollCampos, java.awt.BorderLayout.CENTER);
-
-        panelBotones.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
-        btnLimpiar.setText("Limpiar");
-        panelBotones.add(btnLimpiar);
-        btnGuardar.setText("Validar / Guardar");
-        panelBotones.add(btnGuardar);
-        getContentPane().add(panelBotones, java.awt.BorderLayout.SOUTH);
-
-        pack();
-    }//GEN-END:initComponents
-
-    private void limpiarCampos() {
-        txtCampo1.setText("");
-        txtCampo2.setText("");
-        txtCampo3.setText("");
-        txtCampo4.setText("");
-        txtCampo5.setText("");
-        txtCampo6.setText("");
-        txtCampo7.setText("");
-        txtCampo8.setText("");
-        txtCampo9.setText("");
-        txtCampo10.setText("");
-        txtCampo11.setText("");
+        JSplitPane der = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+                conTitulo(tblDiagnosticos, "Diagnósticos de la orden"), conTitulo(tblEvidencias, "Evidencias técnicas"));
+        der.setResizeWeight(0.5);
+        der.setBorder(null);
+        JPanel p = new JPanel(new BorderLayout(10, 0));
+        p.add(izq, BorderLayout.WEST);
+        p.add(der, BorderLayout.CENTER);
+        return p;
     }
 
-    private void guardarFormulario() {
-        
-        String[] campos = new String[]{txtCampo1.getText(), txtCampo2.getText(), txtCampo3.getText(), txtCampo4.getText(), txtCampo5.getText(), txtCampo6.getText(), txtCampo7.getText(), txtCampo8.getText(), txtCampo9.getText(), txtCampo10.getText(), txtCampo11.getText()};
-        btnGuardar.setEnabled(false);
-        new javax.swing.SwingWorker<String,Void>() {
-            protected String doInBackground() throws Exception { return GuardarFormularios.diagnostico(campos); }
-            protected void done() {
-                btnGuardar.setEnabled(true);
-                try {
-                    String mensaje=get();
-                    javax.swing.JOptionPane.showMessageDialog(FrmDiagnosticoPresupuesto.this, mensaje, "AutoTech Manager",javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                } catch(Exception err) {
-                    Throwable causa=err instanceof java.util.concurrent.ExecutionException && err.getCause()!=null?err.getCause():err;
-                    javax.swing.JOptionPane.showMessageDialog(FrmDiagnosticoPresupuesto.this, causa.getMessage(), "Error de guardado",javax.swing.JOptionPane.ERROR_MESSAGE);
+    private JPanel panelPresupuesto() {
+        JButton generar = EstiloUI.botonSecundario("Generar propuesta");
+        generar.addActionListener(e -> generarPropuesta());
+        JButton guardar = EstiloUI.botonPrimario("Guardar y enviar al cliente");
+        guardar.addActionListener(e -> guardarPresupuesto());
+        lblTotales.setFont(EstiloUI.fuente(Font.PLAIN, 13f));
+        Formulario f = new Formulario("Condiciones")
+                .campo("Impuesto", cmbImpuesto)
+                .campo("Descuento (L)", spnDescuento)
+                .campo("Autorizado por", txtAutoriza)
+                .ancho(botones(generar, guardar))
+                .ancho(lblTotales)
+                .ancho(nota("La propuesta toma la mano de obra de los servicios de la orden (precio y horas) y los "
+                        + "repuestos asociados a cada servicio. Todo descuento necesita quien lo autorice. "
+                        + "Al guardar, la orden pasa a <b>Pendiente de aprobación</b>."))
+                .relleno();
+        f.setPreferredSize(new Dimension(450, 0));
+        JPanel p = new JPanel(new BorderLayout(10, 0));
+        p.add(f, BorderLayout.WEST);
+        p.add(conTitulo(tblPropuesta, "Desglose propuesto"), BorderLayout.CENTER);
+        return p;
+    }
+
+    private JPanel panelAprobacion() {
+        JButton aprobar = EstiloUI.botonPrimario("Cliente aprueba");
+        aprobar.addActionListener(e -> responder(true));
+        JButton rechazar = EstiloUI.botonPeligro("Cliente rechaza");
+        rechazar.addActionListener(e -> responder(false));
+        Formulario f = new Formulario("Respuesta del cliente")
+                .campo("Observación", txtRespuesta)
+                .ancho(botones(aprobar, rechazar))
+                .ancho(nota("Con la aprobación la orden pasa a <b>En reparación</b> (requiere mecánico responsable). "
+                        + "Si el cliente rechaza, se puede cerrar la orden como <b>Rechazada</b> o preparar otro presupuesto."))
+                .relleno();
+        f.setPreferredSize(new Dimension(450, 0));
+        tblPresupuestos.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                Integer id = idSeleccionado(tblPresupuestos);
+                if (id == null) {
+                    limpiar(tblLineas);
+                } else {
+                    ejecutar(() -> llenar(tblLineas, presupuestos.lineas(id)));
                 }
             }
-        }.execute();
+        });
+        JSplitPane der = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+                conTitulo(tblPresupuestos, "Presupuestos de la orden (seleccione uno para ver su detalle)"),
+                conTitulo(tblLineas, "Detalle del presupuesto"));
+        der.setResizeWeight(0.45);
+        der.setBorder(null);
+        JPanel p = new JPanel(new BorderLayout(10, 0));
+        p.add(f, BorderLayout.WEST);
+        p.add(der, BorderLayout.CENTER);
+        return p;
     }
 
-        public static void main(String[] args) {
-        java.awt.EventQueue.invokeLater(() -> new FrmDiagnosticoPresupuesto().setVisible(true));
+    // ================================================================== acciones
+
+    private void registrarDiagnostico() {
+        OrdenResumen o = orden();
+        ejecutar(() -> {
+            presupuestos.registrarDiagnostico(o, (Mecanico) cmbMecanico.getSelectedItem(), txtDescripcion.getText(),
+                    txtCausa.getText(), txtRecomendacion.getText(), chkMotor.isSelected());
+            if (o.getEstado() == EstadoOrden.RECIBIDA) {
+                ordenes.cambiarEstado(o, EstadoOrden.EN_DIAGNOSTICO);
+            }
+            txtDescripcion.setText("");
+            txtCausa.setText("");
+            txtRecomendacion.setText("");
+            chkMotor.setSelected(false);
+            recargar();
+            avisar("Diagnóstico registrado. Agregue las evidencias técnicas.");
+        });
     }
 
-    // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton btnGuardar;
-    private javax.swing.JButton btnLimpiar;
-    private javax.swing.JLabel lblCampo1;
-    private javax.swing.JTextField txtCampo1;
-    private javax.swing.JLabel lblCampo2;
-    private javax.swing.JTextField txtCampo2;
-    private javax.swing.JLabel lblCampo3;
-    private javax.swing.JTextField txtCampo3;
-    private javax.swing.JLabel lblCampo4;
-    private javax.swing.JTextField txtCampo4;
-    private javax.swing.JLabel lblCampo5;
-    private javax.swing.JTextField txtCampo5;
-    private javax.swing.JLabel lblCampo6;
-    private javax.swing.JTextField txtCampo6;
-    private javax.swing.JLabel lblCampo7;
-    private javax.swing.JTextField txtCampo7;
-    private javax.swing.JLabel lblCampo8;
-    private javax.swing.JTextField txtCampo8;
-    private javax.swing.JLabel lblCampo9;
-    private javax.swing.JTextField txtCampo9;
-    private javax.swing.JLabel lblCampo10;
-    private javax.swing.JTextField txtCampo10;
-    private javax.swing.JLabel lblCampo11;
-    private javax.swing.JTextField txtCampo11;
-    private javax.swing.JLabel lblTitulo;
-    private javax.swing.JPanel panelBotones;
-    private javax.swing.JPanel panelCampos;
-    private javax.swing.JScrollPane scrollCampos;
-    // End of variables declaration//GEN-END:variables
+    private void generarPropuesta() {
+        ejecutar(() -> {
+            propuesta = presupuestos.preparar(orden(), (ConfiguracionImpuesto) cmbImpuesto.getSelectedItem(),
+                    BigDecimal.valueOf((Double) spnDescuento.getValue()), txtAutoriza.getText());
+            mostrarPropuesta();
+        });
+    }
+
+    private void mostrarPropuesta() {
+        DefaultTableModel m = new DefaultTableModel(new Object[]{"Tipo", "Descripción", "Horas", "Cantidad", "Precio", "Subtotal"}, 0);
+        for (DetallePresupuesto d : propuesta.getDetalles()) {
+            m.addRow(new Object[]{DetallePresupuesto.MANO_OBRA.equals(d.getTipoLinea()) ? "Mano de obra" : "Repuesto",
+                    d.getDescripcion(), d.getHoras() == 0 ? "" : d.getHoras(), d.getCantidad(),
+                    dinero(d.getPrecioUnitario()), dinero(d.getSubtotal())});
+        }
+        tblPropuesta.setModel(m);
+        lblTotales.setText(String.format("<html>Mano de obra: L %s (%.1f h)<br>Repuestos: L %s<br>Descuento: L %s<br>"
+                + "Impuesto: L %s<br><b>Total: L %s</b></html>",
+                dinero(propuesta.getSubtotalManoObra()), propuesta.getTotalHoras(), dinero(propuesta.getSubtotalRepuestos()),
+                dinero(propuesta.getDescuento()), dinero(propuesta.getMontoImpuesto()), dinero(propuesta.getTotal())));
+    }
+
+    private void guardarPresupuesto() {
+        if (propuesta == null) {
+            avisar("Primero genere la propuesta.");
+            return;
+        }
+        OrdenResumen o = orden();
+        ejecutar(() -> {
+            // vuelve a tomar las condiciones por si se cambiaron después de generar
+            propuesta = presupuestos.preparar(o, (ConfiguracionImpuesto) cmbImpuesto.getSelectedItem(),
+                    BigDecimal.valueOf((Double) spnDescuento.getValue()), txtAutoriza.getText());
+            presupuestos.guardar(o, propuesta);
+            BigDecimal total = propuesta.getTotal();   // recargar() limpia la propuesta de la pantalla
+            if (o.getEstado() == EstadoOrden.EN_DIAGNOSTICO) {
+                ordenes.cambiarEstado(o, EstadoOrden.PENDIENTE_APROBACION);
+            }
+            recargar();
+            avisar("Presupuesto guardado por L " + dinero(total) + ".\nRegistre la respuesta del cliente en la pestaña 3.");
+        });
+    }
+
+    private void responder(boolean aprobado) {
+        OrdenResumen o = orden();
+        ejecutar(() -> {
+            presupuestos.responder(o, aprobado, txtRespuesta.getText());
+            txtRespuesta.setText("");
+            if (aprobado) {
+                if (o.getEstado() == EstadoOrden.PENDIENTE_APROBACION) {
+                    ordenes.cambiarEstado(o, EstadoOrden.EN_REPARACION);
+                }
+                recargar();
+                avisar("Presupuesto aprobado. La orden está en reparación.");
+            } else {
+                recargar();
+                if (o.getEstado() == EstadoOrden.PENDIENTE_APROBACION
+                        && confirmar("Presupuesto rechazado. ¿Cerrar la orden como Rechazada?")) {
+                    ordenes.cambiarEstado(o, EstadoOrden.RECHAZADA);
+                    recargar();
+                }
+            }
+        });
+    }
+
+    @Override
+    protected void ordenSeleccionada(OrdenResumen o) {
+        propuesta = null;
+        limpiar(tblPropuesta);
+        lblTotales.setText(" ");
+        limpiar(tblLineas);
+        if (o == null) {
+            limpiar(tblDiagnosticos);
+            limpiar(tblEvidencias);
+            limpiar(tblPresupuestos);
+            return;
+        }
+        ejecutar(() -> {
+            llenar(tblDiagnosticos, presupuestos.diagnosticos(o.getOrdenId()));
+            llenar(tblEvidencias, presupuestos.evidencias(o.getOrdenId()));
+            llenar(tblPresupuestos, presupuestos.presupuestos(o.getOrdenId()));
+        });
+        chkMotor.setSelected(o.isRequiereCambioMotor());
+    }
 }

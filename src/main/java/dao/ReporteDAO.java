@@ -14,4 +14,8 @@ public interface ReporteDAO {
     TablaResultado consultarSaldosFacturas() throws PersistenciaException;
 
     TablaResultado consultarEstadisticasTaller() throws PersistenciaException;
+
+    TablaResultado consultarProductividadMecanicos() throws PersistenciaException;
+
+    TablaResultado consultarServiciosMasSolicitados() throws PersistenciaException;
 }

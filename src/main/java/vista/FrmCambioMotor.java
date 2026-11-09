@@ -1,184 +1,195 @@
 package vista;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+import modelo.Motor;
+import modelo.OrdenResumen;
+import modelo.enums.DestinoMotorRetirado;
+import servicio.CambioMotorService;
+
 /**
- * Formulario editable en el diseñador GUI de NetBeans.
- * Los botones son una base visual: conectar Guardar con el servicio/DAO correspondiente.
+ * Módulo 7: reparación mayor con sustitución de motor (caso Toyota Hilux 2015).
+ * Muestra los motores con su compatibilidad, registra desmontaje, instalación y pruebas,
+ * y lleva el avance de los 11 pasos del caso.
  */
-public class FrmCambioMotor extends javax.swing.JFrame {
+public class FrmCambioMotor extends FrmBaseOrden {
+
+    private final CambioMotorService servicio = new CambioMotorService();
+    private final List<Motor> motores = new ArrayList<>();
+    private Set<Integer> compatibles = Set.of();
+
+    private final JTable tblMotores = tabla();
+    private final JTextField txtSerieAnterior = EstiloUI.campoCompacto(new JTextField());
+    private final JComboBox<DestinoMotorRetirado> cmbDestino = new JComboBox<>(DestinoMotorRetirado.values());
+    private final JTextField txtDesmontaje = EstiloUI.campoCompacto(new JTextField());
+    private final JTextField txtInstalacion = EstiloUI.campoCompacto(new JTextField());
+    private final JTextArea txtPruebas = area(3);
+    private final JCheckBox chkAprobadas = EstiloUI.casilla(new JCheckBox("Pruebas aprobadas"));
+    private final JTextArea txtObs = area(2);
+    private final JTable tblPasos = tabla();
+    private final JTable tblCambio = tabla();
 
     public FrmCambioMotor() {
-        initComponents();
-        btnLimpiar.addActionListener(evt -> limpiarCampos());
-        btnGuardar.addActionListener(evt -> guardarFormulario());
-        setSize(880, 657);
-        setLocationRelativeTo(null);
-        panelCampos.setBorder(javax.swing.BorderFactory.createEmptyBorder(18, 20, 18, 20));
-    }
+        super("Cambio de motor", "MÓDULO 7: REPARACIÓN MAYOR — SUSTITUCIÓN DE MOTOR",
+                "Compatibilidad, trazabilidad del motor anterior y nuevo, pruebas y avance del caso", true);
 
-    @SuppressWarnings("unchecked")
-    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
-    private void initComponents() {
-        lblTitulo = new javax.swing.JLabel();
-        scrollCampos = new javax.swing.JScrollPane();
-        panelCampos = new javax.swing.JPanel();
-        lblCampo1 = new javax.swing.JLabel();
-        txtCampo1 = new javax.swing.JTextField();
-        lblCampo2 = new javax.swing.JLabel();
-        txtCampo2 = new javax.swing.JTextField();
-        lblCampo3 = new javax.swing.JLabel();
-        txtCampo3 = new javax.swing.JTextField();
-        lblCampo4 = new javax.swing.JLabel();
-        txtCampo4 = new javax.swing.JTextField();
-        lblCampo5 = new javax.swing.JLabel();
-        txtCampo5 = new javax.swing.JTextField();
-        lblCampo6 = new javax.swing.JLabel();
-        txtCampo6 = new javax.swing.JTextField();
-        lblCampo7 = new javax.swing.JLabel();
-        txtCampo7 = new javax.swing.JTextField();
-        lblCampo8 = new javax.swing.JLabel();
-        txtCampo8 = new javax.swing.JTextField();
-        lblCampo9 = new javax.swing.JLabel();
-        txtCampo9 = new javax.swing.JTextField();
-        lblCampo10 = new javax.swing.JLabel();
-        txtCampo10 = new javax.swing.JTextField();
-        lblCampo11 = new javax.swing.JLabel();
-        txtCampo11 = new javax.swing.JTextField();
-        panelBotones = new javax.swing.JPanel();
-        btnLimpiar = new javax.swing.JButton();
-        btnGuardar = new javax.swing.JButton();
+        JButton registrar = EstiloUI.botonPrimario("Registrar cambio de motor");
+        registrar.addActionListener(e -> registrar());
+        JButton ahora1 = EstiloUI.enlace(new JButton("ahora"));
+        ahora1.addActionListener(e -> txtDesmontaje.setText(LocalDateTime.now().minusHours(6).format(FECHA)));
+        JButton ahora2 = EstiloUI.enlace(new JButton("ahora"));
+        ahora2.addActionListener(e -> txtInstalacion.setText(LocalDateTime.now().format(FECHA)));
 
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle("AutoTech Manager - Cambio de motor - Toyota Hilux 2015");
-        getContentPane().setLayout(new java.awt.BorderLayout());
+        Formulario f = new Formulario("Registro del cambio")
+                .ancho(nota("Seleccione el motor nuevo en la tabla de la derecha. Solo se permite instalar un motor "
+                        + "<b>disponible</b> y <b>compatible</b>; la orden debe estar <b>En reparación</b> con el "
+                        + "presupuesto aprobado."))
+                .campo("Serie motor anterior", txtSerieAnterior)
+                .campo("Destino del retirado", cmbDestino)
+                .campo("Desmontaje", conBoton(txtDesmontaje, ahora1))
+                .campo("Instalación", conBoton(txtInstalacion, ahora2))
+                .campo("Resultado de pruebas", txtPruebas)
+                .ancho(chkAprobadas)
+                .campo("Observaciones", txtObs)
+                .ancho(botones(registrar))
+                .ancho(nota("Fechas en formato dd/MM/aaaa HH:mm. Al registrar se descuenta el motor del inventario, "
+                        + "queda instalado y se actualiza la serie del vehículo."))
+                .relleno();
+        JScrollPane izq = new JScrollPane(f);
+        izq.setBorder(null);
+        izq.setPreferredSize(new Dimension(450, 0));
+        izq.getVerticalScrollBar().setUnitIncrement(16);
 
-        lblTitulo.setText("Cambio de motor - Toyota Hilux 2015");
-        lblTitulo.setFont(lblTitulo.getFont().deriveFont(java.awt.Font.BOLD, 21f));
-        lblTitulo.setBorder(javax.swing.BorderFactory.createEmptyBorder(14, 20, 12, 20));
-        getContentPane().add(lblTitulo, java.awt.BorderLayout.NORTH);
-
-        panelCampos.setLayout(new java.awt.GridLayout(11, 2, 12, 10));
-        lblCampo1.setText("ID de orden");
-        panelCampos.add(lblCampo1);
-        txtCampo1.setColumns(24);
-        panelCampos.add(txtCampo1);
-        lblCampo2.setText("ID del vehículo");
-        panelCampos.add(lblCampo2);
-        txtCampo2.setColumns(24);
-        panelCampos.add(txtCampo2);
-        lblCampo3.setText("Serie del motor anterior");
-        panelCampos.add(lblCampo3);
-        txtCampo3.setColumns(24);
-        panelCampos.add(txtCampo3);
-        lblCampo4.setText("ID del motor nuevo");
-        panelCampos.add(lblCampo4);
-        txtCampo4.setColumns(24);
-        panelCampos.add(txtCampo4);
-        lblCampo5.setText("Destino del motor retirado");
-        panelCampos.add(lblCampo5);
-        txtCampo5.setColumns(24);
-        panelCampos.add(txtCampo5);
-        lblCampo6.setText("Fecha de desmontaje");
-        panelCampos.add(lblCampo6);
-        txtCampo6.setColumns(24);
-        panelCampos.add(txtCampo6);
-        lblCampo7.setText("Fecha de instalación");
-        panelCampos.add(lblCampo7);
-        txtCampo7.setColumns(24);
-        panelCampos.add(txtCampo7);
-        lblCampo8.setText("Resultado de pruebas");
-        panelCampos.add(lblCampo8);
-        txtCampo8.setColumns(24);
-        panelCampos.add(txtCampo8);
-        lblCampo9.setText("¿Pruebas aprobadas?");
-        panelCampos.add(lblCampo9);
-        txtCampo9.setColumns(24);
-        panelCampos.add(txtCampo9);
-        lblCampo10.setText("¿Autorizado por el cliente?");
-        panelCampos.add(lblCampo10);
-        txtCampo10.setColumns(24);
-        panelCampos.add(txtCampo10);
-        lblCampo11.setText("Observaciones");
-        panelCampos.add(lblCampo11);
-        txtCampo11.setColumns(24);
-        panelCampos.add(txtCampo11);
-        scrollCampos.setViewportView(panelCampos);
-        getContentPane().add(scrollCampos, java.awt.BorderLayout.CENTER);
-
-        panelBotones.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
-        btnLimpiar.setText("Limpiar");
-        panelBotones.add(btnLimpiar);
-        btnGuardar.setText("Validar / Guardar");
-        panelBotones.add(btnGuardar);
-        getContentPane().add(panelBotones, java.awt.BorderLayout.SOUTH);
-
-        pack();
-    }//GEN-END:initComponents
-
-    private void limpiarCampos() {
-        txtCampo1.setText("");
-        txtCampo2.setText("");
-        txtCampo3.setText("");
-        txtCampo4.setText("");
-        txtCampo5.setText("");
-        txtCampo6.setText("");
-        txtCampo7.setText("");
-        txtCampo8.setText("");
-        txtCampo9.setText("");
-        txtCampo10.setText("");
-        txtCampo11.setText("");
-    }
-
-    private void guardarFormulario() {
-        
-        String[] campos = new String[]{txtCampo1.getText(), txtCampo2.getText(), txtCampo3.getText(), txtCampo4.getText(), txtCampo5.getText(), txtCampo6.getText(), txtCampo7.getText(), txtCampo8.getText(), txtCampo9.getText(), txtCampo10.getText(), txtCampo11.getText()};
-        btnGuardar.setEnabled(false);
-        new javax.swing.SwingWorker<String,Void>() {
-            protected String doInBackground() throws Exception { return GuardarFormularios.motor(campos); }
-            protected void done() {
-                btnGuardar.setEnabled(true);
-                try {
-                    String mensaje=get();
-                    javax.swing.JOptionPane.showMessageDialog(FrmCambioMotor.this, mensaje, "AutoTech Manager",javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                } catch(Exception err) {
-                    Throwable causa=err instanceof java.util.concurrent.ExecutionException && err.getCause()!=null?err.getCause():err;
-                    javax.swing.JOptionPane.showMessageDialog(FrmCambioMotor.this, causa.getMessage(), "Error de guardado",javax.swing.JOptionPane.ERROR_MESSAGE);
+        tblPasos.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foco, int r, int c) {
+                super.getTableCellRendererComponent(t, v, sel, foco, r, c);
+                Object estado = t.getModel().getValueAt(t.convertRowIndexToModel(r), 2);
+                if (!sel) {
+                    setForeground("Completo".equals(estado) ? new Color(0x047857) : EstiloUI.TEXTO);
                 }
+                return this;
             }
-        }.execute();
+        });
+        JSplitPane der = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
+                conTitulo(tblMotores, "Motores en inventario (verde = compatible con el vehículo)"),
+                new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                        conTitulo(tblPasos, "Avance del caso (11 pasos)"),
+                        conTitulo(tblCambio, "Cambio registrado")));
+        der.setResizeWeight(0.42);
+        der.setBorder(null);
+        ((JSplitPane) der.getBottomComponent()).setResizeWeight(0.55);
+        ((JSplitPane) der.getBottomComponent()).setBorder(null);
+
+        tblMotores.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foco, int r, int c) {
+                super.getTableCellRendererComponent(t, v, sel, foco, r, c);
+                Object comp = t.getModel().getValueAt(t.convertRowIndexToModel(r), 6);
+                if (!sel) {
+                    setBackground("Sí".equals(comp) ? EstiloUI.EXITO_CLARO : Color.WHITE);
+                }
+                return this;
+            }
+        });
+
+        JPanel p = new JPanel(new BorderLayout(10, 0));
+        p.setOpaque(false);
+        p.add(izq, BorderLayout.WEST);
+        p.add(der, BorderLayout.CENTER);
+        setContenido(p);
+        cargarOrdenes(null);
+        seleccionarHiluxSiExiste();
     }
 
-        public static void main(String[] args) {
-        java.awt.EventQueue.invokeLater(() -> new FrmCambioMotor().setVisible(true));
+    private static JPanel conBoton(JTextField campo, JButton boton) {
+        JPanel p = new JPanel(new BorderLayout(4, 0));
+        p.setOpaque(false);
+        p.add(campo, BorderLayout.CENTER);
+        p.add(boton, BorderLayout.EAST);
+        return p;
     }
 
-    // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton btnGuardar;
-    private javax.swing.JButton btnLimpiar;
-    private javax.swing.JLabel lblCampo1;
-    private javax.swing.JTextField txtCampo1;
-    private javax.swing.JLabel lblCampo2;
-    private javax.swing.JTextField txtCampo2;
-    private javax.swing.JLabel lblCampo3;
-    private javax.swing.JTextField txtCampo3;
-    private javax.swing.JLabel lblCampo4;
-    private javax.swing.JTextField txtCampo4;
-    private javax.swing.JLabel lblCampo5;
-    private javax.swing.JTextField txtCampo5;
-    private javax.swing.JLabel lblCampo6;
-    private javax.swing.JTextField txtCampo6;
-    private javax.swing.JLabel lblCampo7;
-    private javax.swing.JTextField txtCampo7;
-    private javax.swing.JLabel lblCampo8;
-    private javax.swing.JTextField txtCampo8;
-    private javax.swing.JLabel lblCampo9;
-    private javax.swing.JTextField txtCampo9;
-    private javax.swing.JLabel lblCampo10;
-    private javax.swing.JTextField txtCampo10;
-    private javax.swing.JLabel lblCampo11;
-    private javax.swing.JTextField txtCampo11;
-    private javax.swing.JLabel lblTitulo;
-    private javax.swing.JPanel panelBotones;
-    private javax.swing.JPanel panelCampos;
-    private javax.swing.JScrollPane scrollCampos;
-    // End of variables declaration//GEN-END:variables
+    /** Para la defensa: si hay una orden abierta que requiere cambio de motor, se selecciona. */
+    private void seleccionarHiluxSiExiste() {
+        for (int i = 0; i < cmbOrden.getItemCount(); i++) {
+            if (cmbOrden.getItemAt(i).isRequiereCambioMotor()) {
+                cmbOrden.setSelectedIndex(i);
+                return;
+            }
+        }
+    }
+
+    private void registrar() {
+        int fila = tblMotores.getSelectedRow();
+        Motor motor = fila < 0 ? null : motores.get(tblMotores.convertRowIndexToModel(fila));
+        LocalDateTime desmontaje;
+        LocalDateTime instalacion;
+        try {
+            desmontaje = LocalDateTime.parse(txtDesmontaje.getText().trim(), FECHA);
+            instalacion = LocalDateTime.parse(txtInstalacion.getText().trim(), FECHA);
+        } catch (DateTimeParseException ex) {
+            avisar("Escriba las fechas con el formato dd/MM/aaaa HH:mm (o use \"ahora\").");
+            return;
+        }
+        ejecutar(() -> {
+            servicio.registrar(orden(), motor, txtSerieAnterior.getText(), (DestinoMotorRetirado) cmbDestino.getSelectedItem(),
+                    desmontaje, instalacion, txtPruebas.getText(), chkAprobadas.isSelected(), txtObs.getText(), usuario());
+            recargar();
+            avisar("Cambio de motor registrado.\nEl motor " + motor.getNumeroSerie() + " quedó instalado en el vehículo.");
+        });
+    }
+
+    @Override
+    protected void ordenSeleccionada(OrdenResumen o) {
+        motores.clear();
+        limpiar(tblMotores);
+        limpiar(tblPasos);
+        limpiar(tblCambio);
+        if (o == null) {
+            return;
+        }
+        ejecutar(() -> {
+            motores.addAll(servicio.motores(o.getVehiculoId()));
+            compatibles = servicio.compatibles(o.getVehiculoId());
+            DefaultTableModel m = new DefaultTableModel(new Object[]{
+                "Serie", "Marca", "Modelo", "Cilindrada", "Combustible", "Estado", "Compatible", "Nuevo", "Costo"}, 0);
+            for (Motor x : motores) {
+                m.addRow(new Object[]{x.getNumeroSerie(), x.getMarca(), x.getModeloMotor(), x.getCilindrada(),
+                        x.getCombustible(), x.getEstado(), compatibles.contains(x.getId()) ? "Sí" : "No",
+                        x.isEsNuevo() ? "Sí" : "No", "L " + dinero(x.getCosto())});
+            }
+            tblMotores.setModel(m);
+
+            boolean[] avance = servicio.avance(o.getOrdenId());
+            DefaultTableModel pasos = new DefaultTableModel(new Object[]{"#", "Paso", "Estado"}, 0);
+            for (int i = 0; i < CambioMotorService.PASOS.size(); i++) {
+                pasos.addRow(new Object[]{i + 1, CambioMotorService.PASOS.get(i), avance[i] ? "Completo" : "Pendiente"});
+            }
+            tblPasos.setModel(pasos);
+            tblPasos.getColumnModel().getColumn(0).setMaxWidth(36);
+            tblPasos.getColumnModel().getColumn(2).setMaxWidth(90);
+
+            llenar(tblCambio, servicio.cambioRegistrado(o.getOrdenId()));
+            txtSerieAnterior.setText(servicio.serieActual(o.getVehiculoId()));
+        });
+    }
 }

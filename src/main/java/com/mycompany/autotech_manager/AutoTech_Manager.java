@@ -2,10 +2,10 @@ package com.mycompany.autotech_manager;
 
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import vista.FrmMenuPrincipal;
+import vista.FrmLogin;
 
 /**
- * Punto de entrada de AutoTech Manager: abre el menú principal.
+ * Punto de entrada de AutoTech Manager: abre el inicio de sesión y, si es correcto, el menú principal.
  */
 public class AutoTech_Manager {
 
@@ -16,6 +16,6 @@ public class AutoTech_Manager {
         } catch (Exception e) {
             System.err.println("No se pudo aplicar la apariencia del sistema: " + e.getMessage());
         }
-        SwingUtilities.invokeLater(() -> new FrmMenuPrincipal().setVisible(true));
+        SwingUtilities.invokeLater(() -> new FrmLogin().setVisible(true));
     }
 }

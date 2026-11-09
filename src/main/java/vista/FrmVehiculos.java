@@ -65,12 +65,12 @@ public class FrmVehiculos extends JFrame {
 
     private void initComponents() {
         setTitle("AutoTech Manager — Gestión de Vehículos");
-        setSize(1050, 650);
+        setSize(1150, 690);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
-        JPanel pnlHeader = new JPanel(new BorderLayout());
+        JPanel pnlHeader = EstiloUI.panelEncabezado();
         pnlHeader.setBackground(EstiloUI.AZUL_OSCURO);
         pnlHeader.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
@@ -81,7 +81,7 @@ public class FrmVehiculos extends JFrame {
 
         JLabel lblSub = new JLabel("Asociación a clientes, validación de placas hondureñas y VIN de 17 caracteres");
         lblSub.setFont(EstiloUI.fuente(Font.PLAIN, 12f));
-        lblSub.setForeground(new Color(0xD1D5DB));
+        lblSub.setForeground(EstiloUI.TEXTO_ENCABEZADO);
         pnlHeader.add(lblSub, BorderLayout.SOUTH);
 
         add(pnlHeader, BorderLayout.NORTH);
@@ -129,10 +129,15 @@ public class FrmVehiculos extends JFrame {
         agregarFilaForm(pnlForm, gbc, row++, "Serie Motor Actual:", txtSerieMotor);
         agregarFilaForm(pnlForm, gbc, row++, "", chkActivo);
 
-        JPanel pnlBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 6));
+        JPanel pnlBotones = new JPanel(new GridLayout(2, 2, 6, 6));
         JButton btnNuevo = EstiloUI.botonSecundario("Nuevo");
         JButton btnGuardar = EstiloUI.botonPrimario("Guardar");
         JButton btnDesactivar = EstiloUI.botonPeligro("Desactivar");
+        JButton btnEliminar = EstiloUI.botonPeligro("Eliminar");
+        btnEliminar.addActionListener(e -> Eliminador.eliminar(this, modelo.enums.RegistroEliminable.VEHICULO, txtId.getText(), () -> {
+            limpiarFormulario();
+            cargarVehiculos("");
+        }));
 
         btnNuevo.addActionListener(e -> limpiarFormulario());
         btnGuardar.addActionListener(e -> guardarVehiculo());
@@ -141,13 +146,14 @@ public class FrmVehiculos extends JFrame {
         pnlBotones.add(btnNuevo);
         pnlBotones.add(btnGuardar);
         pnlBotones.add(btnDesactivar);
+        pnlBotones.add(btnEliminar);
 
         gbc.gridx = 0;
         gbc.gridy = row;
         gbc.gridwidth = 2;
         pnlForm.add(pnlBotones, gbc);
 
-        add(pnlForm, BorderLayout.WEST);
+        add(EstiloUI.panelLateral(pnlForm, 440), BorderLayout.WEST);
 
         JPanel pnlCentral = new JPanel(new BorderLayout(8, 8));
         pnlCentral.setBorder(BorderFactory.createEmptyBorder(10, 5, 15, 15));
@@ -155,13 +161,13 @@ public class FrmVehiculos extends JFrame {
         JPanel pnlFiltros = new JPanel(new GridLayout(2, 1, 4, 4));
 
         JPanel pnlFiltroCliente = new JPanel(new BorderLayout(5, 5));
-        pnlFiltroCliente.add(new JLabel("Filtrar por Cliente:"), BorderLayout.WEST);
+        pnlFiltroCliente.add(new JLabel("Cliente:"), BorderLayout.WEST);
         cmbFiltroCliente = new JComboBox<>();
         cmbFiltroCliente.addActionListener(e -> filtrarPorCliente());
         pnlFiltroCliente.add(cmbFiltroCliente, BorderLayout.CENTER);
 
         JPanel pnlBuscar = new JPanel(new BorderLayout(5, 5));
-        pnlBuscar.add(new JLabel("Buscar (Placa / VIN / Modelo):"), BorderLayout.WEST);
+        pnlBuscar.add(new JLabel("Buscar:"), BorderLayout.WEST);
         txtBuscar = EstiloUI.campoCompacto(new JTextField());
         JButton btnBuscar = EstiloUI.botonPrimario("Buscar");
         JButton btnVerTodos = EstiloUI.botonSecundario("Todos");

@@ -1,22 +1,36 @@
 package servicio;
 
+import dao.PagoDAO;
+import dao.impl.PagoDAOImpl;
+import excepciones.AutoTechException;
+import excepciones.PersistenciaException;
 import excepciones.ReglaNegocioException;
-import modelo.Factura;
-import modelo.OrdenTrabajo;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import excepciones.ValidacionException;
+import modelo.OrdenResumen;
+import modelo.TablaResultado;
+import modelo.enums.EstadoOrden;
 
+/** Emisión de facturas de órdenes finalizadas. */
 public class FacturacionService {
-    public Factura generar(OrdenTrabajo orden) throws ReglaNegocioException {
-        if (orden == null) throw new ReglaNegocioException("Seleccione una orden.");
-        if (orden.getTotal() == null || orden.getTotal().signum() <= 0) throw new ReglaNegocioException("La orden no tiene un total válido.");
-        Factura f = new Factura();
-        f.setOrden(orden);
-        f.setFecha(LocalDateTime.now());
-        f.setSubtotal(orden.getTotalServicios().add(orden.getTotalRepuestos()));
-        f.setDescuento(BigDecimal.ZERO);
-        f.setImpuesto(BigDecimal.ZERO);
-        f.setTotal(orden.getTotal());
-        return f;
+
+    private final PagoDAO dao = new PagoDAOImpl();
+
+    public int generarFactura(OrdenResumen orden) throws AutoTechException {
+        if (orden == null) throw new ValidacionException("Seleccione una orden.");
+        if (orden.getEstado() != EstadoOrden.FINALIZADA && orden.getEstado() != EstadoOrden.ENTREGADA) {
+            throw new ReglaNegocioException("Solo se facturan órdenes finalizadas (la orden está en " + orden.getEstado() + ").");
+        }
+        if (orden.getNumeroFactura() != null) {
+            throw new ReglaNegocioException("La orden ya tiene la factura " + orden.getNumeroFactura() + ".");
+        }
+        try {
+            return dao.generarFactura(orden.getOrdenId());
+        } catch (PersistenciaException e) {
+            throw ErroresNegocio.traducir(e);
+        }
+    }
+
+    public TablaResultado facturas() throws PersistenciaException {
+        return dao.listarFacturas();
     }
 }

@@ -96,9 +96,21 @@ public class ReporteDAOImpl extends BaseDAO implements ReporteDAO {
                    + "(SELECT COUNT(*) FROM dbo.Vehiculos WHERE activo = 1) AS total_vehiculos, "
                    + "(SELECT COUNT(*) FROM dbo.Mecanicos WHERE activo = 1 AND disponible = 1) AS mecanicos_disponibles, "
                    + "(SELECT COUNT(*) FROM dbo.Repuestos WHERE activo = 1 AND stock_actual <= stock_minimo) AS repuestos_stock_bajo, "
-                   + "(SELECT COUNT(*) FROM dbo.OrdenesTrabajo WHERE estado NOT IN ('FINALIZADA','ENTREGADA','CANCELADA','RECHAZADA')) AS ordenes_en_proceso, "
+                   + "(SELECT COUNT(*) FROM dbo.OrdenesTrabajo WHERE activo = 1 AND estado NOT IN ('FINALIZADA','ENTREGADA','CANCELADA','RECHAZADA')) AS ordenes_en_proceso, "
                    + "(SELECT ISNULL(SUM(total), 0) FROM dbo.Facturas) AS total_facturado, "
                    + "(SELECT ISNULL(SUM(monto), 0) FROM dbo.Pagos) AS total_cobrado";
+        return ejecutarConsultaTabla(sql);
+    }
+
+    @Override
+    public TablaResultado consultarProductividadMecanicos() throws PersistenciaException {
+        String sql = "SELECT * FROM dbo.vw_ProductividadMecanicos ORDER BY horas_trabajadas DESC";
+        return ejecutarConsultaTabla(sql);
+    }
+
+    @Override
+    public TablaResultado consultarServiciosMasSolicitados() throws PersistenciaException {
+        String sql = "SELECT * FROM dbo.vw_ServiciosMasSolicitados ORDER BY veces_solicitado DESC";
         return ejecutarConsultaTabla(sql);
     }
 }

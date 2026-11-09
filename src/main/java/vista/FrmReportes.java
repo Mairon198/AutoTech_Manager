@@ -7,9 +7,6 @@ import modelo.TablaResultado;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.PrintWriter;
 
 public class FrmReportes extends JFrame {
 
@@ -26,6 +23,8 @@ public class FrmReportes extends JFrame {
     private JTable tablaOrdenesResumen;
     private JTable tablaStockBajo;
     private JTable tablaSaldosFacturas;
+    private JTable tablaProductividad;
+    private JTable tablaServicios;
 
     public FrmReportes() {
         this.reporteDAO = new ReporteDAOImpl();
@@ -40,11 +39,11 @@ public class FrmReportes extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
-        JPanel pnlHeader = new JPanel(new BorderLayout());
+        JPanel pnlHeader = EstiloUI.panelEncabezado();
         pnlHeader.setBackground(EstiloUI.AZUL_OSCURO);
         pnlHeader.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
-        JLabel lblTitulo = new JLabel("REPORTES ADMINISTRATIVOS Y TABLERO DE CONTROL (VISTAS SQL)");
+        JLabel lblTitulo = new JLabel("REPORTES ADMINISTRATIVOS Y TABLERO DE CONTROL");
         lblTitulo.setFont(EstiloUI.fuente(Font.BOLD, 18f));
         lblTitulo.setForeground(Color.WHITE);
         pnlHeader.add(lblTitulo, BorderLayout.WEST);
@@ -74,15 +73,23 @@ public class FrmReportes extends JFrame {
 
         tablaOrdenesResumen = new JTable();
         EstiloUI.tabla(tablaOrdenesResumen);
-        tabs.addTab("1. Vista: Resumen de Órdenes (vw_OrdenesResumen)", crearPanelVista(tablaOrdenesResumen, "OrdenesResumen"));
+        tabs.addTab("Órdenes", crearPanelVista(tablaOrdenesResumen, "OrdenesResumen"));
 
         tablaStockBajo = new JTable();
         EstiloUI.tabla(tablaStockBajo);
-        tabs.addTab("2. Vista: Repuestos en Stock Bajo (vw_StockBajo)", crearPanelVista(tablaStockBajo, "StockBajo"));
+        tabs.addTab("Stock bajo", crearPanelVista(tablaStockBajo, "StockBajo"));
 
         tablaSaldosFacturas = new JTable();
         EstiloUI.tabla(tablaSaldosFacturas);
-        tabs.addTab("3. Vista: Saldos y Facturación (vw_SaldosFacturas)", crearPanelVista(tablaSaldosFacturas, "SaldosFacturas"));
+        tabs.addTab("Saldos y facturas", crearPanelVista(tablaSaldosFacturas, "SaldosFacturas"));
+
+        tablaProductividad = new JTable();
+        EstiloUI.tabla(tablaProductividad);
+        tabs.addTab("Productividad de mecánicos", crearPanelVista(tablaProductividad, "ProductividadMecanicos"));
+
+        tablaServicios = new JTable();
+        EstiloUI.tabla(tablaServicios);
+        tabs.addTab("Servicios más solicitados", crearPanelVista(tablaServicios, "ServiciosMasSolicitados"));
 
         pnlBody.add(tabs, BorderLayout.CENTER);
         add(pnlBody, BorderLayout.CENTER);
@@ -113,10 +120,11 @@ public class FrmReportes extends JFrame {
         JPanel pnl = new JPanel(new BorderLayout(6, 6));
         pnl.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
-        JPanel pnlTop = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        JButton btnExportar = EstiloUI.botonSecundario("Exportar a CSV");
-        btnExportar.addActionListener(e -> exportarTablaCSV(tabla, nombreReporte));
-        pnlTop.add(btnExportar);
+        JPanel pnlTop = new JPanel(new BorderLayout());
+        JLabel lblFuente = new JLabel("Fuente: vista SQL dbo.vw_" + nombreReporte);
+        lblFuente.setFont(EstiloUI.fuente(Font.PLAIN, 12f));
+        lblFuente.setForeground(EstiloUI.TEXTO_SUAVE);
+        pnlTop.add(lblFuente, BorderLayout.WEST);
 
         pnl.add(pnlTop, BorderLayout.NORTH);
         pnl.add(new JScrollPane(tabla), BorderLayout.CENTER);
@@ -141,6 +149,8 @@ public class FrmReportes extends JFrame {
             llenarTabla(tablaOrdenesResumen, reporteDAO.consultarOrdenesResumen());
             llenarTabla(tablaStockBajo, reporteDAO.consultarStockBajo());
             llenarTabla(tablaSaldosFacturas, reporteDAO.consultarSaldosFacturas());
+            llenarTabla(tablaProductividad, reporteDAO.consultarProductividadMecanicos());
+            llenarTabla(tablaServicios, reporteDAO.consultarServiciosMasSolicitados());
 
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error al consultar vistas de reportes: " + ex.getMessage(),
@@ -159,34 +169,6 @@ public class FrmReportes extends JFrame {
             model.addRow(fila);
         }
         tabla.setModel(model);
-    }
-
-    private void exportarTablaCSV(JTable tabla, String nombreBase) {
-        JFileChooser chooser = new JFileChooser();
-        chooser.setSelectedFile(new File("Reporte_" + nombreBase + ".csv"));
-        if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-            File archivo = chooser.getSelectedFile();
-            try (PrintWriter pw = new PrintWriter(new FileWriter(archivo))) {
-                DefaultTableModel model = (DefaultTableModel) tabla.getModel();
-                for (int c = 0; c < model.getColumnCount(); c++) {
-                    if (c > 0) pw.print(",");
-                    pw.print("\"" + model.getColumnName(c) + "\"");
-                }
-                pw.println();
-                for (int r = 0; r < model.getRowCount(); r++) {
-                    for (int c = 0; c < model.getColumnCount(); c++) {
-                        if (c > 0) pw.print(",");
-                        Object val = model.getValueAt(r, c);
-                        pw.print("\"" + (val != null ? val.toString().replace("\"", "\"\"") : "") + "\"");
-                    }
-                    pw.println();
-                }
-                JOptionPane.showMessageDialog(this, "Reporte exportado exitosamente en:\n" + archivo.getAbsolutePath());
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Error al exportar CSV: " + ex.getMessage(),
-                        "Error", JOptionPane.ERROR_MESSAGE);
-            }
-        }
     }
 
     public static void main(String[] args) {

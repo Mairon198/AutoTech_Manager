@@ -60,7 +60,7 @@ public class FrmInventario extends JFrame {
 
     private void initComponents() {
         setTitle("AutoTech Manager — Inventario, Kardex y Control Concurrente");
-        setSize(1150, 720);
+        setSize(1200, 740);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(8, 8));
@@ -72,7 +72,7 @@ public class FrmInventario extends JFrame {
             }
         });
 
-        JPanel pnlHeader = new JPanel(new BorderLayout());
+        JPanel pnlHeader = EstiloUI.panelEncabezado();
         pnlHeader.setBackground(EstiloUI.AZUL_OSCURO);
         pnlHeader.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
@@ -91,9 +91,9 @@ public class FrmInventario extends JFrame {
         JTabbedPane tabs = new JTabbedPane();
         tabs.setFont(EstiloUI.fuente(Font.BOLD, 13f));
 
-        tabs.addTab("1. Catálogo de Repuestos y Movimientos", crearPanelCatalogo());
-        tabs.addTab("2. Kardex de Movimientos (Entradas / Salidas / Ajustes)", crearPanelKardex());
-        tabs.addTab("3. Hilos: Monitor de Stock y Demostración de Concurrencia", crearPanelHilos());
+        tabs.addTab("1. Catálogo de repuestos", crearPanelCatalogo());
+        tabs.addTab("2. Kárdex de movimientos", crearPanelKardex());
+        tabs.addTab("3. Hilos y concurrencia", crearPanelHilos());
 
         add(tabs, BorderLayout.CENTER);
     }
@@ -141,10 +141,15 @@ public class FrmInventario extends JFrame {
         agregarFilaForm(pnlForm, gbc, row++, "Ubicación Estante:", txtUbicacion);
         agregarFilaForm(pnlForm, gbc, row++, "", chkActivo);
 
-        JPanel pnlBotonesCrud = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 4));
+        JPanel pnlBotonesCrud = new JPanel(new GridLayout(2, 2, 6, 6));
         JButton btnNuevo = EstiloUI.botonSecundario("Nuevo");
         JButton btnGuardar = EstiloUI.botonPrimario("Guardar");
         JButton btnDesactivar = EstiloUI.botonPeligro("Desactivar");
+        JButton btnEliminar = EstiloUI.botonPeligro("Eliminar");
+        btnEliminar.addActionListener(e -> Eliminador.eliminar(this, modelo.enums.RegistroEliminable.REPUESTO, txtId.getText(), () -> {
+            limpiarFormulario();
+            cargarRepuestos("");
+        }));
 
         btnNuevo.addActionListener(e -> limpiarFormulario());
         btnGuardar.addActionListener(e -> guardarRepuesto());
@@ -153,6 +158,7 @@ public class FrmInventario extends JFrame {
         pnlBotonesCrud.add(btnNuevo);
         pnlBotonesCrud.add(btnGuardar);
         pnlBotonesCrud.add(btnDesactivar);
+        pnlBotonesCrud.add(btnEliminar);
 
         gbc.gridx = 0;
         gbc.gridy = row++;
@@ -176,7 +182,7 @@ public class FrmInventario extends JFrame {
         gbc.gridy = row;
         pnlForm.add(pnlTransaccionales, gbc);
 
-        pnl.add(pnlForm, BorderLayout.WEST);
+        pnl.add(EstiloUI.panelLateral(pnlForm, 450), BorderLayout.WEST);
 
         JPanel pnlCentro = new JPanel(new BorderLayout(6, 6));
 
@@ -199,7 +205,7 @@ public class FrmInventario extends JFrame {
         pnlBotonesTop.add(btnTodos);
         pnlBotonesTop.add(btnBajoStock);
 
-        pnlTop.add(new JLabel("Buscar por Código / Nombre / Marca:"), BorderLayout.WEST);
+        pnlTop.add(new JLabel("Buscar (código / nombre / marca):"), BorderLayout.NORTH);
         pnlTop.add(txtBuscar, BorderLayout.CENTER);
         pnlTop.add(pnlBotonesTop, BorderLayout.EAST);
 
@@ -258,7 +264,7 @@ public class FrmInventario extends JFrame {
         JPanel pnlControles = new JPanel(new GridLayout(1, 2, 15, 10));
 
         JPanel cardMonitor = new JPanel(new BorderLayout(8, 8));
-        cardMonitor.setBorder(BorderFactory.createTitledBorder("Hilo 1: MonitorStockMinimo (Demonio Periódico)"));
+        cardMonitor.setBorder(BorderFactory.createTitledBorder("Hilo 1: Monitor de stock mínimo"));
         JLabel lblDescMonitor = new JLabel("<html>Verifica periódicamente en segundo plano qué repuestos tienen <b>stock_actual &lt;= stock_minimo</b> y notifica alertas en tiempo real.</html>");
         cardMonitor.add(lblDescMonitor, BorderLayout.CENTER);
 
@@ -277,12 +283,12 @@ public class FrmInventario extends JFrame {
         cardMonitor.add(pnlBtnMonitor, BorderLayout.SOUTH);
 
         JPanel cardDemo = new JPanel(new BorderLayout(8, 8));
-        cardDemo.setBorder(BorderFactory.createTitledBorder("Hilo 2: Demostración de Concurrencia (2 Hilos Simultáneos)"));
+        cardDemo.setBorder(BorderFactory.createTitledBorder("Hilo 2: Demostración de concurrencia"));
         JLabel lblDescDemo = new JLabel("<html>Lanza <b>2 hilos al mismo milisegundo</b> intentando descontar 4 y 3 unidades de un mismo repuesto con stock = 5. Demuestra el bloqueo transaccional <code>UPDLOCK, HOLDLOCK</code> y rollback automático.</html>");
         cardDemo.add(lblDescDemo, BorderLayout.CENTER);
 
         JPanel pnlBtnDemo = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton btnEjecutarDemo = EstiloUI.botonPeligro("Ejecutar Demostración de Concurrencia (2 Hilos)");
+        JButton btnEjecutarDemo = EstiloUI.botonPeligro("Ejecutar demostración de concurrencia");
         JButton btnLimpiarLog = EstiloUI.botonSecundario("Limpiar Consola");
 
         btnEjecutarDemo.addActionListener(e -> {
@@ -329,11 +335,23 @@ public class FrmInventario extends JFrame {
             public void onAlertaStockCritico(List<Repuesto> repuestosCriticos) {
                 SwingUtilities.invokeLater(() -> {
                     StringBuilder sb = new StringBuilder();
-                    sb.append("[ALERTA MONITOR STOCK] Se detectaron ").append(repuestosCriticos.size())
-                      .append(" repuestos en nivel crítico:\n");
+                    int n = repuestosCriticos.size();
+                    sb.append("[ALERTA MONITOR STOCK] ").append(n == 1 ? "1 repuesto en nivel crítico:\n"
+                            : n + " repuestos en nivel crítico:\n");
                     for (Repuesto r : repuestosCriticos) {
                         sb.append(String.format("   - [%s] %s | Stock actual: %d (Mínimo requerido: %d)\n",
                                 r.getCodigo(), r.getNombre(), r.getStock(), r.getStockMinimo()));
+                    }
+                    logConsola(sb.toString());
+                });
+            }
+
+            @Override
+            public void onRepuestosNormalizados(List<Repuesto> repuestos) {
+                SwingUtilities.invokeLater(() -> {
+                    StringBuilder sb = new StringBuilder("[MONITOR STOCK] Volvieron a un nivel normal:\n");
+                    for (Repuesto r : repuestos) {
+                        sb.append(String.format("   - [%s] %s\n", r.getCodigo(), r.getNombre()));
                     }
                     logConsola(sb.toString());
                 });
@@ -358,7 +376,7 @@ public class FrmInventario extends JFrame {
             monitorStock.iniciar();
             btnToggleMonitor.setText("Detener MonitorStockMinimo");
             lblEstadoMonitor.setText("Monitor Stock Mínimo: EN EJECUCIÓN...");
-            logConsola("[MonitorStockMinimo] Hilo iniciado. Monitoreando inventario cada 5 segundos...");
+            logConsola("[MonitorStockMinimo] Hilo iniciado. Revisa el inventario cada 5 segundos y avisa solo cuando algo cambia.");
         }
     }
 
@@ -602,7 +620,7 @@ public class FrmInventario extends JFrame {
         pnl.add(new JLabel("Motivo / Factura Compra:"));
         pnl.add(txtMotivo);
 
-        if (JOptionPane.showConfirmDialog(this, pnl, "Entrada de Inventario (Transaccional)", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+        if (JOptionPane.showConfirmDialog(this, pnl, "Entrada de inventario", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
             try {
                 int cant = (int) spnCant.getValue();
                 BigDecimal costo = BigDecimal.valueOf(((Number) spnNuevoCosto.getValue()).doubleValue());
@@ -633,7 +651,7 @@ public class FrmInventario extends JFrame {
         pnl.add(new JLabel("Cantidad a descontar:"));
         pnl.add(spnCant);
 
-        if (JOptionPane.showConfirmDialog(this, pnl, "Descuento Atómico por Orden (Commit/Rollback)", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+        if (JOptionPane.showConfirmDialog(this, pnl, "Descuento por orden", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
             try {
                 int ordenId = (int) spnOrdenId.getValue();
                 int cant = (int) spnCant.getValue();
@@ -643,8 +661,8 @@ public class FrmInventario extends JFrame {
                 cargarRepuestos("");
                 cargarKardexGeneral();
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "Transacción revertida (Rollback):\n" + ex.getMessage(),
-                        "Control de Stock / Rollback", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this, "No se realizó el descuento:\n" + ex.getMessage(),
+                        "Control de stock", JOptionPane.WARNING_MESSAGE);
             }
         }
     }

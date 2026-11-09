@@ -1,148 +1,151 @@
 package vista;
 
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.math.BigDecimal;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JPanel;
+import javax.swing.JSpinner;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
+import modelo.Mecanico;
+import modelo.OrdenResumen;
+import servicio.MecanicoService;
+
 /**
- * Formulario editable en el diseñador GUI de NetBeans.
- * Los botones son una base visual: conectar Guardar con el servicio/DAO correspondiente.
+ * Asignación de mecánicos a la orden (uno responsable) y control de las actividades
+ * con horas trabajadas. Solo se asignan mecánicos activos y disponibles.
  */
-public class FrmAsignacionActividades extends javax.swing.JFrame {
+public class FrmAsignacionActividades extends FrmBaseOrden {
+
+    private final MecanicoService mecanicos = new MecanicoService();
+
+    private final JComboBox<Mecanico> cmbMecanico = new JComboBox<>();
+    private final JCheckBox chkResponsable = EstiloUI.casilla(new JCheckBox("Es el responsable de la orden"));
+    private final JTable tblAsignados = tabla();
+
+    private final JComboBox<Mecanico> cmbMecanicoAct = new JComboBox<>();
+    private final JTextField txtActividad = EstiloUI.campoCompacto(new JTextField());
+    private final JSpinner spnHoras = new JSpinner(new SpinnerNumberModel(1.0, 0.0, 200.0, 0.5));
+    private final JTextField txtObs = EstiloUI.campoCompacto(new JTextField());
+    private final JTable tblActividades = tabla();
 
     public FrmAsignacionActividades() {
-        initComponents();
-        btnLimpiar.addActionListener(evt -> limpiarCampos());
-        btnGuardar.addActionListener(evt -> guardarFormulario());
-        setSize(880, 469);
-        setLocationRelativeTo(null);
-        panelCampos.setBorder(javax.swing.BorderFactory.createEmptyBorder(18, 20, 18, 20));
-    }
+        super("Asignación y actividades", "ASIGNACIÓN DE MECÁNICOS Y ACTIVIDADES",
+                "Mecánicos por orden, responsable, actividades y horas trabajadas", true);
 
-    @SuppressWarnings("unchecked")
-    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
-    private void initComponents() {
-        lblTitulo = new javax.swing.JLabel();
-        scrollCampos = new javax.swing.JScrollPane();
-        panelCampos = new javax.swing.JPanel();
-        lblCampo1 = new javax.swing.JLabel();
-        txtCampo1 = new javax.swing.JTextField();
-        lblCampo2 = new javax.swing.JLabel();
-        txtCampo2 = new javax.swing.JTextField();
-        lblCampo3 = new javax.swing.JLabel();
-        txtCampo3 = new javax.swing.JTextField();
-        lblCampo4 = new javax.swing.JLabel();
-        txtCampo4 = new javax.swing.JTextField();
-        lblCampo5 = new javax.swing.JLabel();
-        txtCampo5 = new javax.swing.JTextField();
-        lblCampo6 = new javax.swing.JLabel();
-        txtCampo6 = new javax.swing.JTextField();
-        lblCampo7 = new javax.swing.JLabel();
-        txtCampo7 = new javax.swing.JTextField();
-        panelBotones = new javax.swing.JPanel();
-        btnLimpiar = new javax.swing.JButton();
-        btnGuardar = new javax.swing.JButton();
-
-        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
-        setTitle("AutoTech Manager - Asignación de actividades");
-        getContentPane().setLayout(new java.awt.BorderLayout());
-
-        lblTitulo.setText("Asignación de actividades");
-        lblTitulo.setFont(lblTitulo.getFont().deriveFont(java.awt.Font.BOLD, 21f));
-        lblTitulo.setBorder(javax.swing.BorderFactory.createEmptyBorder(14, 20, 12, 20));
-        getContentPane().add(lblTitulo, java.awt.BorderLayout.NORTH);
-
-        panelCampos.setLayout(new java.awt.GridLayout(7, 2, 12, 10));
-        lblCampo1.setText("ID de orden");
-        panelCampos.add(lblCampo1);
-        txtCampo1.setColumns(24);
-        panelCampos.add(txtCampo1);
-        lblCampo2.setText("ID del mecánico");
-        panelCampos.add(lblCampo2);
-        txtCampo2.setColumns(24);
-        panelCampos.add(txtCampo2);
-        lblCampo3.setText("Actividad / tarea");
-        panelCampos.add(lblCampo3);
-        txtCampo3.setColumns(24);
-        panelCampos.add(txtCampo3);
-        lblCampo4.setText("Horas estimadas");
-        panelCampos.add(lblCampo4);
-        txtCampo4.setColumns(24);
-        panelCampos.add(txtCampo4);
-        lblCampo5.setText("Estado");
-        panelCampos.add(lblCampo5);
-        txtCampo5.setColumns(24);
-        panelCampos.add(txtCampo5);
-        lblCampo6.setText("Fecha de inicio");
-        panelCampos.add(lblCampo6);
-        txtCampo6.setColumns(24);
-        panelCampos.add(txtCampo6);
-        lblCampo7.setText("Observaciones");
-        panelCampos.add(lblCampo7);
-        txtCampo7.setColumns(24);
-        panelCampos.add(txtCampo7);
-        scrollCampos.setViewportView(panelCampos);
-        getContentPane().add(scrollCampos, java.awt.BorderLayout.CENTER);
-
-        panelBotones.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT));
-        btnLimpiar.setText("Limpiar");
-        panelBotones.add(btnLimpiar);
-        btnGuardar.setText("Validar / Guardar");
-        panelBotones.add(btnGuardar);
-        getContentPane().add(panelBotones, java.awt.BorderLayout.SOUTH);
-
-        pack();
-    }//GEN-END:initComponents
-
-    private void limpiarCampos() {
-        txtCampo1.setText("");
-        txtCampo2.setText("");
-        txtCampo3.setText("");
-        txtCampo4.setText("");
-        txtCampo5.setText("");
-        txtCampo6.setText("");
-        txtCampo7.setText("");
-    }
-
-    private void guardarFormulario() {
-        
-        String[] campos = new String[]{txtCampo1.getText(), txtCampo2.getText(), txtCampo3.getText(), txtCampo4.getText(), txtCampo5.getText(), txtCampo6.getText(), txtCampo7.getText()};
-        btnGuardar.setEnabled(false);
-        new javax.swing.SwingWorker<String,Void>() {
-            protected String doInBackground() throws Exception { return GuardarFormularios.actividad(campos); }
-            protected void done() {
-                btnGuardar.setEnabled(true);
-                try {
-                    String mensaje=get();
-                    javax.swing.JOptionPane.showMessageDialog(FrmAsignacionActividades.this, mensaje, "AutoTech Manager",javax.swing.JOptionPane.INFORMATION_MESSAGE);
-                } catch(Exception err) {
-                    Throwable causa=err instanceof java.util.concurrent.ExecutionException && err.getCause()!=null?err.getCause():err;
-                    javax.swing.JOptionPane.showMessageDialog(FrmAsignacionActividades.this, causa.getMessage(), "Error de guardado",javax.swing.JOptionPane.ERROR_MESSAGE);
-                }
+        JButton asignar = EstiloUI.botonPrimario("Asignar a la orden");
+        asignar.addActionListener(e -> {
+            if (ejecutar(() -> ordenes.asignarMecanico(orden(), (Mecanico) cmbMecanico.getSelectedItem(),
+                    chkResponsable.isSelected()))) {
+                chkResponsable.setSelected(false);
+                recargar();
             }
-        }.execute();
+        });
+        JButton quitar = EstiloUI.botonPeligro("Quitar seleccionado");
+        quitar.addActionListener(e -> quitarMecanico());
+        Formulario asignacion = new Formulario("Asignar mecánico")
+                .campo("Mecánico", cmbMecanico)
+                .ancho(chkResponsable)
+                .ancho(botones(asignar, quitar))
+                .ancho(nota("Solo aparecen mecánicos activos y disponibles. Si marca otro responsable, "
+                        + "reemplaza al anterior. Para quitar a alguien, selecciónelo en la tabla de la derecha."))
+                .relleno();
+
+        JButton agregar = EstiloUI.botonPrimario("Agregar actividad");
+        agregar.addActionListener(e -> {
+            if (ejecutar(() -> ordenes.agregarActividad(orden(), (Mecanico) cmbMecanicoAct.getSelectedItem(),
+                    txtActividad.getText()))) {
+                txtActividad.setText("");
+                ordenSeleccionada(orden());
+            }
+        });
+        JButton iniciar = EstiloUI.botonSecundario("Iniciar seleccionada");
+        iniciar.addActionListener(e -> conActividad(id -> ordenes.iniciarActividad(id)));
+        JButton completar = EstiloUI.botonSecundario("Completar seleccionada");
+        completar.addActionListener(e -> conActividad(id -> ordenes.completarActividad(id,
+                BigDecimal.valueOf((Double) spnHoras.getValue()), txtObs.getText())));
+        Formulario actividad = new Formulario("Actividades de trabajo")
+                .campo("Mecánico", cmbMecanicoAct)
+                .campo("Actividad", txtActividad)
+                .ancho(botones(agregar))
+                .campo("Horas trabajadas", spnHoras)
+                .campo("Observación", txtObs)
+                .ancho(botones(iniciar, completar))
+                .ancho(nota("La orden no puede finalizar mientras haya actividades sin completar."))
+                .relleno();
+
+        JPanel izq = new JPanel(new GridLayout(2, 1, 0, 8));
+        izq.setOpaque(false);
+        izq.add(asignacion);
+        izq.add(actividad);
+        izq.setPreferredSize(new Dimension(440, 0));
+
+        JPanel der = new JPanel(new GridLayout(2, 1, 0, 8));
+        der.setOpaque(false);
+        der.add(conTitulo(tblAsignados, "Mecánicos asignados"));
+        der.add(conTitulo(tblActividades, "Actividades (seleccione una para iniciarla o completarla)"));
+
+        JPanel p = new JPanel(new BorderLayout(10, 0));
+        p.setOpaque(false);
+        p.add(izq, BorderLayout.WEST);
+        p.add(der, BorderLayout.CENTER);
+        setContenido(p);
+
+        ejecutar(() -> {
+            llenarCombo(cmbMecanico, mecanicos.listarDisponibles());
+            llenarCombo(cmbMecanicoAct, mecanicos.listarActivos());
+        });
+        mostrarCon(cmbMecanico, m -> m + " · " + m.getNivelCertificacion() + " · L " + dinero(m.getTarifaHora()) + "/h");
+        cargarOrdenes(null);
     }
 
-        public static void main(String[] args) {
-        java.awt.EventQueue.invokeLater(() -> new FrmAsignacionActividades().setVisible(true));
+    private void quitarMecanico() {
+        Integer id = idSeleccionado(tblAsignados);
+        if (id == null) {
+            avisar("Seleccione en la tabla \"Mecánicos asignados\" al mecánico que desea quitar.");
+            return;
+        }
+        int fila = tblAsignados.convertRowIndexToModel(tblAsignados.getSelectedRow());
+        String nombre = String.valueOf(tblAsignados.getModel().getValueAt(fila, 2));
+        if (!confirmar("¿Quitar a " + nombre + " de la orden " + orden().getNumero() + "?")) {
+            return;
+        }
+        if (ejecutar(() -> ordenes.quitarMecanico(orden(), id, nombre))) {
+            recargar();
+        }
     }
 
-    // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JButton btnGuardar;
-    private javax.swing.JButton btnLimpiar;
-    private javax.swing.JLabel lblCampo1;
-    private javax.swing.JTextField txtCampo1;
-    private javax.swing.JLabel lblCampo2;
-    private javax.swing.JTextField txtCampo2;
-    private javax.swing.JLabel lblCampo3;
-    private javax.swing.JTextField txtCampo3;
-    private javax.swing.JLabel lblCampo4;
-    private javax.swing.JTextField txtCampo4;
-    private javax.swing.JLabel lblCampo5;
-    private javax.swing.JTextField txtCampo5;
-    private javax.swing.JLabel lblCampo6;
-    private javax.swing.JTextField txtCampo6;
-    private javax.swing.JLabel lblCampo7;
-    private javax.swing.JTextField txtCampo7;
-    private javax.swing.JLabel lblTitulo;
-    private javax.swing.JPanel panelBotones;
-    private javax.swing.JPanel panelCampos;
-    private javax.swing.JScrollPane scrollCampos;
-    // End of variables declaration//GEN-END:variables
+    private interface AccionId {
+        void con(int id) throws Exception;
+    }
+
+    private void conActividad(AccionId accion) {
+        Integer id = idSeleccionado(tblActividades);
+        if (id == null) {
+            avisar("Seleccione una actividad de la tabla.");
+            return;
+        }
+        if (ejecutar(() -> accion.con(id))) {
+            txtObs.setText("");
+            ordenSeleccionada(orden());
+        }
+    }
+
+    @Override
+    protected void ordenSeleccionada(OrdenResumen o) {
+        if (o == null) {
+            limpiar(tblAsignados);
+            limpiar(tblActividades);
+            return;
+        }
+        ejecutar(() -> {
+            llenar(tblAsignados, ordenes.asignaciones(o.getOrdenId()));
+            llenar(tblActividades, ordenes.actividades(o.getOrdenId()));
+        });
+    }
 }

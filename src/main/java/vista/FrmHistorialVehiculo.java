@@ -37,18 +37,18 @@ public class FrmHistorialVehiculo extends JFrame {
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
-        JPanel pnlHeader = new JPanel(new BorderLayout());
+        JPanel pnlHeader = EstiloUI.panelEncabezado();
         pnlHeader.setBackground(EstiloUI.AZUL_OSCURO);
         pnlHeader.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
-        JLabel lblTitulo = new JLabel("EXPEDIENTE HISTÓRICO POR VEHÍCULO (vw_HistorialVehiculo)");
+        JLabel lblTitulo = new JLabel("EXPEDIENTE HISTÓRICO POR VEHÍCULO");
         lblTitulo.setFont(EstiloUI.fuente(Font.BOLD, 18f));
         lblTitulo.setForeground(Color.WHITE);
         pnlHeader.add(lblTitulo, BorderLayout.WEST);
 
         JLabel lblSub = new JLabel("Consulta separada de intervenciones, servicios realizados, repuestos consumidos y sustituciones de motor");
         lblSub.setFont(EstiloUI.fuente(Font.PLAIN, 12f));
-        lblSub.setForeground(new Color(0xD1D5DB));
+        lblSub.setForeground(EstiloUI.TEXTO_ENCABEZADO);
         pnlHeader.add(lblSub, BorderLayout.SOUTH);
 
         add(pnlHeader, BorderLayout.NORTH);

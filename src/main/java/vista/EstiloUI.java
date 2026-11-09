@@ -51,15 +51,23 @@ import javax.swing.table.JTableHeader;
 
 public final class EstiloUI {
 
-    public static final Color PRIMARIO = new Color(0x0F766E);
-    public static final Color PRIMARIO_HOVER = new Color(0x0D9488);
-    public static final Color PRIMARIO_PRESIONADO = new Color(0x115E59);
-    public static final Color AZUL_OSCURO = new Color(0x0B2545);
+    // Tema AutoTech: rojo taller sobre grafito
+    public static final Color PRIMARIO = new Color(0xC62828);
+    public static final Color PRIMARIO_HOVER = new Color(0xDC3B3B);
+    public static final Color PRIMARIO_PRESIONADO = new Color(0x8E1C1C);
+    /** Color oscuro del tema (encabezados). Conserva el nombre para no romper los formularios existentes. */
+    public static final Color AZUL_OSCURO = new Color(0x2A0D10);
+    public static final Color TEXTO_ENCABEZADO = new Color(0xF6D5D5);
     public static final Color TEXTO = new Color(0x1F2937);
     public static final Color TEXTO_SUAVE = new Color(0x6B7280);
     public static final Color BORDE = new Color(0xD1D5DB);
     public static final Color FONDO_CLARO = new Color(0xF3F4F6);
-    public static final Color VERDE_CLARO = new Color(0xCCFBF1);
+    /** Acento claro del tema (selección y resaltados). */
+    public static final Color ACENTO_CLARO = new Color(0xFDE4E4);
+    /** Se conserva por compatibilidad: ahora es el acento claro rojo. */
+    public static final Color VERDE_CLARO = ACENTO_CLARO;
+    public static final Color EXITO = new Color(0x047857);
+    public static final Color EXITO_CLARO = new Color(0xDCFCE7);
     public static final Color ERROR = new Color(0xB91C1C);
     public static final Color ERROR_FONDO = new Color(0xFEE2E2);
     private static final Color DESHABILITADO = new Color(0x9CA3AF);
@@ -113,7 +121,7 @@ public final class EstiloUI {
     }
 
     public static JButton botonPeligro(String texto) {
-        return boton(new JButton(texto), new BotonUI(ERROR, new Color(0xDC2626), new Color(0x991B1B), null, Color.WHITE, null), 13f);
+        return boton(new JButton(texto), new BotonUI(Color.WHITE, ERROR_FONDO, new Color(0xFECACA), ERROR, ERROR, null), 13f);
     }
 
     public static JButton primario(JButton b) {
@@ -298,7 +306,7 @@ public final class EstiloUI {
                     l.setForeground(Color.WHITE);
                 } else if (l.getForeground() instanceof UIResource || TEXTO.equals(l.getForeground())) {
                     l.setFont(fuente(Font.PLAIN, 13f));
-                    l.setForeground(VERDE_CLARO);
+                    l.setForeground(TEXTO_ENCABEZADO);
                 } else {
                     l.setFont(fuente(Font.BOLD, 13f));
                     l.setForeground(new Color(0xFDE68A));
@@ -348,12 +356,209 @@ public final class EstiloUI {
         }
     }
 
-    public static Icon iconoGafas(int ancho, Color color) {
+    /** Ícono del sistema (vehículo con llave y tuerca); "ancho" es el tamaño en píxeles. */
+    public static Icon iconoTaller(int ancho, Color color) {
         return new IconoTaller(ancho, color);
     }
 
-    public static Icon iconoTaller(int ancho, Color color) {
-        return new IconoTaller(ancho, color);
+    /** Íconos de la ventana (barra de título y barra de tareas) en varios tamaños. */
+    public static java.util.List<java.awt.Image> iconosVentana() {
+        java.util.List<java.awt.Image> lista = new java.util.ArrayList<>();
+        for (int t : new int[]{16, 20, 24, 32, 48, 64, 128, 256}) {
+            java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(t, t, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+            Graphics2D g2 = img.createGraphics();
+            suavizar(g2);
+            g2.setPaint(new GradientPaint(0, 0, PRIMARIO_HOVER, t, t, PRIMARIO_PRESIONADO));
+            float r = t * 0.22f;
+            g2.fill(new RoundRectangle2D.Float(0, 0, t, t, r, r));
+            int m = Math.round(t * 0.10f);
+            new IconoTaller(t - 2 * m, Color.WHITE).paintIcon(null, g2, m, m);
+            g2.dispose();
+            lista.add(img);
+        }
+        return lista;
+    }
+
+    /**
+     * Coloca un formulario de captura en una columna lateral con desplazamiento vertical:
+     * conserva el tamaño natural de cada campo (nada se aplasta ni se corta) y, si la
+     * ventana es baja, aparece la barra de desplazamiento.
+     */
+    public static JScrollPane panelLateral(JPanel formulario, int ancho) {
+        formulario.setPreferredSize(null);
+        JPanel contenedor = new ColumnaFormulario();
+        contenedor.setBackground(formulario.getBackground());
+        contenedor.add(formulario, BorderLayout.NORTH);
+        JScrollPane s = new JScrollPane(contenedor, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        s.setBorder(BorderFactory.createEmptyBorder());
+        s.getVerticalScrollBar().setUnitIncrement(16);
+        s.setPreferredSize(new Dimension(ancho, 0));
+        s.setMinimumSize(new Dimension(ancho, 0));
+        return s;
+    }
+
+    private static final class ColumnaFormulario extends JPanel implements javax.swing.Scrollable {
+
+        ColumnaFormulario() {
+            super(new BorderLayout());
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
+            return r.height;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return getParent() != null && getParent().getHeight() > getPreferredSize().height;
+        }
+    }
+
+    /**
+     * Agrega al encabezado del formulario el botón "Menú principal", que cierra la ventana
+     * y regresa al menú. Si el encabezado ya tiene algo a la derecha, lo conserva al lado.
+     */
+    public static void agregarVolverAlMenu(JFrame ventana, Runnable volver) {
+        PanelEncabezado h = buscarEncabezado(ventana.getContentPane());
+        JButton b = new BotonVolver();
+        b.setToolTipText("Cerrar este módulo y regresar al menú principal");
+        b.addActionListener(e -> volver.run());
+        if (h == null) {
+            JPanel barra = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 10, 6));
+            barra.setBackground(AZUL_OSCURO);
+            barra.add(b);
+            ventana.getContentPane().add(barra, BorderLayout.NORTH);
+            return;
+        }
+        BorderLayout bl = (BorderLayout) h.getLayout();
+        Component este = bl.getLayoutComponent(BorderLayout.EAST);
+        JPanel derecha = new JPanel(new java.awt.GridBagLayout());
+        derecha.setOpaque(false);
+        java.awt.GridBagConstraints g = new java.awt.GridBagConstraints();
+        g.insets = new Insets(0, 10, 0, 0);
+        if (este != null) {
+            h.remove(este);
+            derecha.add(este, g);
+        }
+        derecha.add(b, g);
+        h.add(derecha, BorderLayout.EAST);
+        h.revalidate();
+    }
+
+    private static PanelEncabezado buscarEncabezado(Container c) {
+        for (Component x : c.getComponents()) {
+            if (x instanceof PanelEncabezado p) {
+                return p;
+            }
+            if (x instanceof Container cc) {
+                PanelEncabezado p = buscarEncabezado(cc);
+                if (p != null) {
+                    return p;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Botón translúcido con flecha para regresar al menú. */
+    private static final class BotonVolver extends JButton {
+
+        BotonVolver() {
+            super("Menú principal");
+            setFont(fuente(Font.BOLD, 13f));
+            setForeground(Color.WHITE);
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setFocusPainted(false);
+            setOpaque(false);
+            setRolloverEnabled(true);
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            FontMetrics fm = getFontMetrics(getFont());
+            setPreferredSize(new Dimension(fm.stringWidth(getText()) + 52, 36));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            suavizar(g2);
+            int w = getWidth();
+            int h = getHeight();
+            boolean encima = getModel().isRollover();
+            boolean presionado = getModel().isPressed();
+            g2.setColor(presionado ? new Color(255, 255, 255, 90) : encima ? Color.WHITE : new Color(255, 255, 255, 34));
+            g2.fill(new RoundRectangle2D.Float(0, 0, w - 1, h - 1, h, h));
+            g2.setColor(new Color(255, 255, 255, 110));
+            g2.draw(new RoundRectangle2D.Float(0.5f, 0.5f, w - 2, h - 2, h, h));
+            if (isFocusOwner() && !encima) {
+                g2.setColor(Color.WHITE);
+                g2.setStroke(new BasicStroke(2f));
+                g2.draw(new RoundRectangle2D.Float(1, 1, w - 3, h - 3, h, h));
+            }
+            Color tinta = encima && !presionado ? PRIMARIO : Color.WHITE;
+            // flecha hacia la izquierda
+            g2.setColor(tinta);
+            g2.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            int cy = h / 2;
+            g2.drawLine(16, cy, 30, cy);
+            g2.drawPolyline(new int[]{22, 16, 22}, new int[]{cy - 6, cy, cy + 6}, 3);
+            g2.setFont(getFont());
+            FontMetrics fm = g2.getFontMetrics();
+            g2.drawString(getText(), 38, (h + fm.getAscent() - fm.getDescent()) / 2);
+            g2.dispose();
+        }
+    }
+
+    /** Encabezado de los formularios: degradado rojo con el ícono del sistema a la izquierda. */
+    public static JPanel panelEncabezado() {
+        return new PanelEncabezado(46);
+    }
+
+    public static JPanel panelEncabezado(int tamanoIcono) {
+        return new PanelEncabezado(tamanoIcono);
+    }
+
+    private static final class PanelEncabezado extends JPanel {
+
+        private final IconoTaller icono;
+        private Border externo = BorderFactory.createEmptyBorder(15, 20, 15, 20);
+
+        PanelEncabezado(int tamano) {
+            super(new BorderLayout());
+            icono = new IconoTaller(tamano, Color.WHITE);
+            setOpaque(true);
+            setBorder(externo);
+        }
+
+        // El formulario fija sus márgenes; se agrega a la izquierda el espacio del ícono
+        @Override
+        public void setBorder(Border b) {
+            externo = b;
+            super.setBorder(b == null ? null
+                    : BorderFactory.createCompoundBorder(b, BorderFactory.createEmptyBorder(0, icono.getIconWidth() + 14, 0, 0)));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            pintarDegradado(g, 0, 0, getWidth(), getHeight());
+            Insets i = externo == null ? new Insets(0, 0, 0, 0) : externo.getBorderInsets(this);
+            icono.paintIcon(this, g, i.left, (getHeight() - icono.getIconHeight()) / 2);
+        }
     }
 
     public static class PanelDegradado extends JPanel {
@@ -372,7 +577,7 @@ public final class EstiloUI {
         Graphics2D g2 = (Graphics2D) g.create();
         suavizar(g2);
         g2.translate(x, y);
-        g2.setPaint(new GradientPaint(0, 0, AZUL_OSCURO, w, h, PRIMARIO));
+        g2.setPaint(new GradientPaint(0, 0, AZUL_OSCURO, w, h * 0.3f + w * 0.6f, PRIMARIO_PRESIONADO));
         g2.fillRect(0, 0, w, h);
         g2.setColor(new Color(255, 255, 255, 18));
         float d = Math.min(w, h) * 1.4f;
@@ -492,13 +697,18 @@ public final class EstiloUI {
         }
     }
 
+    /**
+     * Ícono de AutoTech: vehículo de perfil con una llave que aprieta una tuerca.
+     * Se dibuja con áreas (los huecos quedan transparentes), así se ve bien sobre
+     * el degradado del encabezado y como ícono de la ventana.
+     */
     private static final class IconoTaller implements Icon {
 
-        private final int ancho;
+        private final int tamano;
         private final Color color;
 
-        IconoTaller(int ancho, Color color) {
-            this.ancho = ancho;
+        IconoTaller(int tamano, Color color) {
+            this.tamano = tamano;
             this.color = color;
         }
 
@@ -507,47 +717,92 @@ public final class EstiloUI {
             Graphics2D g2 = (Graphics2D) g.create();
             suavizar(g2);
             g2.translate(x, y);
-            int h = getIconHeight();
-            float trazo = Math.max(2.6f, ancho / 24f);
-            g2.setStroke(new BasicStroke(trazo, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+            g2.scale(tamano / 100.0, tamano / 100.0);
             g2.setColor(color);
-
-            float wCar = ancho * 0.86f;
-            float xCar = (ancho - wCar) / 2f;
-            float yBase = h * 0.65f;
-            g2.draw(new RoundRectangle2D.Float(xCar, yBase - h * 0.22f, wCar, h * 0.24f, 10, 10));
-            int[] px = {
-                (int) (xCar + wCar * 0.18f),
-                (int) (xCar + wCar * 0.32f),
-                (int) (xCar + wCar * 0.68f),
-                (int) (xCar + wCar * 0.84f)
-            };
-            int[] py = {
-                (int) (yBase - h * 0.22f),
-                (int) (yBase - h * 0.48f),
-                (int) (yBase - h * 0.48f),
-                (int) (yBase - h * 0.22f)
-            };
-            g2.drawPolyline(px, py, 4);
-
-            float rRueda = h * 0.16f;
-            g2.setColor(AZUL_OSCURO);
-            g2.fill(new Ellipse2D.Float(xCar + wCar * 0.14f, yBase - rRueda * 0.35f, rRueda * 2, rRueda * 2));
-            g2.fill(new Ellipse2D.Float(xCar + wCar * 0.86f - rRueda * 2, yBase - rRueda * 0.35f, rRueda * 2, rRueda * 2));
-            g2.setColor(color);
-            g2.draw(new Ellipse2D.Float(xCar + wCar * 0.14f, yBase - rRueda * 0.35f, rRueda * 2, rRueda * 2));
-            g2.draw(new Ellipse2D.Float(xCar + wCar * 0.86f - rRueda * 2, yBase - rRueda * 0.35f, rRueda * 2, rRueda * 2));
+            g2.fill(vehiculo());
+            g2.fill(llaveYTuerca());
             g2.dispose();
+        }
+
+        private static java.awt.geom.Area vehiculo() {
+            java.awt.geom.Path2D.Float cuerpo = new java.awt.geom.Path2D.Float();
+            cuerpo.moveTo(6, 76);
+            cuerpo.lineTo(6, 64);
+            cuerpo.quadTo(6, 57, 13, 56);
+            cuerpo.lineTo(27, 54);
+            cuerpo.lineTo(37, 41);
+            cuerpo.quadTo(39, 39, 42, 39);
+            cuerpo.lineTo(64, 39);
+            cuerpo.quadTo(67, 39, 69, 41);
+            cuerpo.lineTo(80, 54);
+            cuerpo.lineTo(89, 56);
+            cuerpo.quadTo(95, 57.5f, 95, 64);
+            cuerpo.lineTo(95, 76);
+            cuerpo.closePath();
+            java.awt.geom.Area a = new java.awt.geom.Area(cuerpo);
+
+            java.awt.geom.Path2D.Float v1 = new java.awt.geom.Path2D.Float();
+            v1.moveTo(41, 44); v1.lineTo(51, 44); v1.lineTo(51, 53); v1.lineTo(33, 53); v1.closePath();
+            java.awt.geom.Path2D.Float v2 = new java.awt.geom.Path2D.Float();
+            v2.moveTo(55, 44); v2.lineTo(66, 44); v2.lineTo(74, 53); v2.lineTo(55, 53); v2.closePath();
+            a.subtract(new java.awt.geom.Area(v1));
+            a.subtract(new java.awt.geom.Area(v2));
+
+            for (float cx : new float[]{26, 75}) {
+                a.subtract(new java.awt.geom.Area(new Ellipse2D.Float(cx - 12.5f, 76 - 12.5f, 25, 25)));
+                java.awt.geom.Area rueda = new java.awt.geom.Area(new Ellipse2D.Float(cx - 10, 76 - 10, 20, 20));
+                rueda.subtract(new java.awt.geom.Area(new Ellipse2D.Float(cx - 5.5f, 76 - 5.5f, 11, 11)));
+                rueda.add(new java.awt.geom.Area(new Ellipse2D.Float(cx - 2.5f, 76 - 2.5f, 5, 5)));
+                a.add(rueda);
+            }
+            return a;
+        }
+
+        private static java.awt.geom.Area llaveYTuerca() {
+            // Llave inclinada sobre el techo; su boca abierta sujeta una tuerca hexagonal
+            double ang = Math.toRadians(-20);
+            java.awt.geom.AffineTransform t = new java.awt.geom.AffineTransform();
+            t.translate(48, 22);
+            t.rotate(ang);
+
+            java.awt.geom.Area llave = new java.awt.geom.Area(
+                    new RoundRectangle2D.Float(-30, -3.6f, 46, 7.2f, 7, 7));
+            // extremo de anillo
+            llave.add(new java.awt.geom.Area(new Ellipse2D.Float(-38, -8, 16, 16)));
+            llave.subtract(new java.awt.geom.Area(new Ellipse2D.Float(-33.5f, -3.5f, 7, 7)));
+            // cabeza de boca abierta
+            java.awt.geom.Area cabeza = new java.awt.geom.Area(new Ellipse2D.Float(12, -10.5f, 21, 21));
+            cabeza.subtract(new java.awt.geom.Area(new java.awt.Rectangle.Float(22, -5.2f, 14, 10.4f)));
+            llave.add(cabeza);
+
+            // tuerca dentro de la boca, con un pequeño espacio
+            java.awt.geom.Path2D.Float hex = new java.awt.geom.Path2D.Float();
+            for (int i = 0; i < 6; i++) {
+                double a = Math.toRadians(60 * i);
+                float px = (float) (29 + 6.4 * Math.cos(a));
+                float py = (float) (6.4 * Math.sin(a));
+                if (i == 0) hex.moveTo(px, py); else hex.lineTo(px, py);
+            }
+            hex.closePath();
+            java.awt.geom.Area tuerca = new java.awt.geom.Area(hex);
+            java.awt.geom.Area holgura = new java.awt.geom.Area(new java.awt.BasicStroke(3f).createStrokedShape(hex));
+            holgura.add(tuerca);
+            llave.subtract(holgura);
+            tuerca.subtract(new java.awt.geom.Area(new Ellipse2D.Float(26.4f, -2.6f, 5.2f, 5.2f)));
+            llave.add(tuerca);
+
+            llave.transform(t);
+            return llave;
         }
 
         @Override
         public int getIconWidth() {
-            return ancho;
+            return tamano;
         }
 
         @Override
         public int getIconHeight() {
-            return (int) (ancho * 0.56f);
+            return tamano;
         }
     }
 }

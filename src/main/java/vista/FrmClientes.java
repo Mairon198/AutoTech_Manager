@@ -34,12 +34,12 @@ public class FrmClientes extends JFrame {
 
     private void initComponents() {
         setTitle("AutoTech Manager — Gestión de Clientes");
-        setSize(950, 600);
+        setSize(1100, 660);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
-        JPanel pnlHeader = new JPanel(new BorderLayout());
+        JPanel pnlHeader = EstiloUI.panelEncabezado();
         pnlHeader.setBackground(EstiloUI.AZUL_OSCURO);
         pnlHeader.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
@@ -50,7 +50,7 @@ public class FrmClientes extends JFrame {
 
         JLabel lblSub = new JLabel("Registro, actualización, consulta y desactivación de propietarios");
         lblSub.setFont(EstiloUI.fuente(Font.PLAIN, 12f));
-        lblSub.setForeground(new Color(0xD1D5DB));
+        lblSub.setForeground(EstiloUI.TEXTO_ENCABEZADO);
         pnlHeader.add(lblSub, BorderLayout.SOUTH);
 
         add(pnlHeader, BorderLayout.NORTH);
@@ -82,7 +82,7 @@ public class FrmClientes extends JFrame {
         chkActivo = new JCheckBox("Cliente Activo", true);
 
         int row = 0;
-        agregarFilaForm(pnlForm, gbc, row++, "ID (Auto):", txtId);
+        agregarFilaForm(pnlForm, gbc, row++, "ID:", txtId);
         agregarFilaForm(pnlForm, gbc, row++, "Identificación / RTN *:", txtIdentidad);
         agregarFilaForm(pnlForm, gbc, row++, "Nombre *:", txtNombre);
         agregarFilaForm(pnlForm, gbc, row++, "Apellido:", txtApellido);
@@ -92,10 +92,15 @@ public class FrmClientes extends JFrame {
         agregarFilaForm(pnlForm, gbc, row++, "Tipo de Cliente:", cmbTipoCliente);
         agregarFilaForm(pnlForm, gbc, row++, "", chkActivo);
 
-        JPanel pnlBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 8));
-        JButton btnNuevo = EstiloUI.botonSecundario("Nuevo / Limpiar");
+        JPanel pnlBotones = new JPanel(new GridLayout(2, 2, 6, 6));
+        JButton btnNuevo = EstiloUI.botonSecundario("Nuevo");
         JButton btnGuardar = EstiloUI.botonPrimario("Guardar");
         JButton btnDesactivar = EstiloUI.botonPeligro("Desactivar");
+        JButton btnEliminar = EstiloUI.botonPeligro("Eliminar");
+        btnEliminar.addActionListener(e -> Eliminador.eliminar(this, modelo.enums.RegistroEliminable.CLIENTE, txtId.getText(), () -> {
+            limpiarFormulario();
+            cargarClientes("");
+        }));
 
         btnNuevo.addActionListener(e -> limpiarFormulario());
         btnGuardar.addActionListener(e -> guardarCliente());
@@ -104,13 +109,14 @@ public class FrmClientes extends JFrame {
         pnlBotones.add(btnNuevo);
         pnlBotones.add(btnGuardar);
         pnlBotones.add(btnDesactivar);
+        pnlBotones.add(btnEliminar);
 
         gbc.gridx = 0;
         gbc.gridy = row;
         gbc.gridwidth = 2;
         pnlForm.add(pnlBotones, gbc);
 
-        add(pnlForm, BorderLayout.WEST);
+        add(EstiloUI.panelLateral(pnlForm, 420), BorderLayout.WEST);
 
         JPanel pnlCentral = new JPanel(new BorderLayout(8, 8));
         pnlCentral.setBorder(BorderFactory.createEmptyBorder(10, 5, 15, 15));
@@ -274,7 +280,7 @@ public class FrmClientes extends JFrame {
         }
         int id = Integer.parseInt(idStr);
         int resp = JOptionPane.showConfirmDialog(this,
-                "¿Está seguro de desactivar al cliente seleccionado? (Borrado lógico)",
+                "¿Está seguro de desactivar al cliente seleccionado?",
                 "Confirmar Desactivación", JOptionPane.YES_NO_OPTION);
         if (resp == JOptionPane.YES_OPTION) {
             try {

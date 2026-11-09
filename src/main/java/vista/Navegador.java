@@ -34,6 +34,16 @@ public final class Navegador {
     private Navegador() {
     }
 
+    /** Cierra todos los formularios abiertos (al cerrar sesión). */
+    public static void cerrarTodos() {
+        for (java.awt.Window w : ABIERTOS.values()) {
+            if (w != null && w.isDisplayable()) {
+                w.dispose();
+            }
+        }
+        ABIERTOS.clear();
+    }
+
     /** Indica si el formulario ya fue creado por algún integrante. */
     public static boolean existe(String nombreClase) {
         try {
@@ -44,21 +54,33 @@ public final class Navegador {
         }
     }
 
-    /** Abre (o trae al frente) el formulario indicado. */
-    public static void abrir(Component origen, String nombreClase, String titulo) {
+    /** Abre (o trae al frente) el formulario indicado. Devuelve la ventana, o null si no se pudo abrir. */
+    public static java.awt.Window abrir(Component origen, String nombreClase, String titulo) {
         java.awt.Window abierto = ABIERTOS.get(nombreClase);
         if (abierto != null && abierto.isDisplayable()) {
             abierto.toFront();
             abierto.requestFocus();
-            return;
+            return abierto;
         }
         try {
             Class<?> clase = Class.forName(PAQUETE + nombreClase);
             Object formulario = clase.getDeclaredConstructor().newInstance();
             java.awt.Window ventana = comoVentana(origen, formulario, titulo);
+            ventana.setIconImages(EstiloUI.iconosVentana());
+            if (ventana instanceof JFrame frame) {
+                java.awt.Window menu = origen instanceof java.awt.Window w ? w : SwingUtilities.getWindowAncestor(origen);
+                EstiloUI.agregarVolverAlMenu(frame, () -> {
+                    frame.dispose();
+                    if (menu != null) {
+                        menu.toFront();
+                        menu.requestFocus();
+                    }
+                });
+            }
             ventana.setLocationRelativeTo(SwingUtilities.getWindowAncestor(origen));
             ABIERTOS.put(nombreClase, ventana);
             ventana.setVisible(true);
+            return ventana;
         } catch (ClassNotFoundException e) {
             JOptionPane.showMessageDialog(origen,
                     "El módulo \"" + titulo + "\" todavía no está disponible.\n"
@@ -70,6 +92,7 @@ public final class Navegador {
                     "No se pudo abrir \"" + titulo + "\":\n" + causa.getMessage(),
                     "Error", JOptionPane.ERROR_MESSAGE);
         }
+        return null;
     }
 
     /** Convierte el formulario en una ventana que, al cerrarse, no termina la aplicación. */

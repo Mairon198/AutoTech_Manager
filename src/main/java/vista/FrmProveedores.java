@@ -33,12 +33,12 @@ public class FrmProveedores extends JFrame {
 
     private void initComponents() {
         setTitle("AutoTech Manager — Gestión de Proveedores");
-        setSize(980, 580);
+        setSize(1100, 640);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
-        JPanel pnlHeader = new JPanel(new BorderLayout());
+        JPanel pnlHeader = EstiloUI.panelEncabezado();
         pnlHeader.setBackground(EstiloUI.AZUL_OSCURO);
         pnlHeader.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
@@ -49,7 +49,7 @@ public class FrmProveedores extends JFrame {
 
         JLabel lblSub = new JLabel("Suministradores de repuestos, lubricantes y piezas originales del taller");
         lblSub.setFont(EstiloUI.fuente(Font.PLAIN, 12f));
-        lblSub.setForeground(new Color(0xD1D5DB));
+        lblSub.setForeground(EstiloUI.TEXTO_ENCABEZADO);
         pnlHeader.add(lblSub, BorderLayout.SOUTH);
 
         add(pnlHeader, BorderLayout.NORTH);
@@ -88,10 +88,15 @@ public class FrmProveedores extends JFrame {
         agregarFilaForm(pnlForm, gbc, row++, "Dirección:", txtDireccion);
         agregarFilaForm(pnlForm, gbc, row++, "", chkActivo);
 
-        JPanel pnlBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 6));
+        JPanel pnlBotones = new JPanel(new GridLayout(2, 2, 6, 6));
         JButton btnNuevo = EstiloUI.botonSecundario("Nuevo");
         JButton btnGuardar = EstiloUI.botonPrimario("Guardar");
         JButton btnDesactivar = EstiloUI.botonPeligro("Desactivar");
+        JButton btnEliminar = EstiloUI.botonPeligro("Eliminar");
+        btnEliminar.addActionListener(e -> Eliminador.eliminar(this, modelo.enums.RegistroEliminable.PROVEEDOR, txtId.getText(), () -> {
+            limpiarFormulario();
+            cargarProveedores("");
+        }));
 
         btnNuevo.addActionListener(e -> limpiarFormulario());
         btnGuardar.addActionListener(e -> guardarProveedor());
@@ -100,13 +105,14 @@ public class FrmProveedores extends JFrame {
         pnlBotones.add(btnNuevo);
         pnlBotones.add(btnGuardar);
         pnlBotones.add(btnDesactivar);
+        pnlBotones.add(btnEliminar);
 
         gbc.gridx = 0;
         gbc.gridy = row;
         gbc.gridwidth = 2;
         pnlForm.add(pnlBotones, gbc);
 
-        add(pnlForm, BorderLayout.WEST);
+        add(EstiloUI.panelLateral(pnlForm, 420), BorderLayout.WEST);
 
         JPanel pnlCentral = new JPanel(new BorderLayout(8, 8));
         pnlCentral.setBorder(BorderFactory.createEmptyBorder(10, 5, 15, 15));

@@ -62,12 +62,12 @@ public class FrmMecanicos extends JFrame {
 
     private void initComponents() {
         setTitle("AutoTech Manager — Personal Técnico y Especialidades");
-        setSize(1080, 680);
+        setSize(1180, 700);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         setLayout(new BorderLayout(10, 10));
 
-        JPanel pnlHeader = new JPanel(new BorderLayout());
+        JPanel pnlHeader = EstiloUI.panelEncabezado();
         pnlHeader.setBackground(EstiloUI.AZUL_OSCURO);
         pnlHeader.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
@@ -78,7 +78,7 @@ public class FrmMecanicos extends JFrame {
 
         JLabel lblSub = new JLabel("Control de personal técnico, tarifas por hora, especialidades y bloqueo de inactivos");
         lblSub.setFont(EstiloUI.fuente(Font.PLAIN, 12f));
-        lblSub.setForeground(new Color(0xD1D5DB));
+        lblSub.setForeground(EstiloUI.TEXTO_ENCABEZADO);
         pnlHeader.add(lblSub, BorderLayout.SOUTH);
 
         add(pnlHeader, BorderLayout.NORTH);
@@ -117,7 +117,8 @@ public class FrmMecanicos extends JFrame {
         lstEspecialidades.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         lstEspecialidades.setVisibleRowCount(4);
         JScrollPane scrollEsp = new JScrollPane(lstEspecialidades);
-        scrollEsp.setPreferredSize(new Dimension(0, 90));
+        scrollEsp.setPreferredSize(new Dimension(200, 96));
+        scrollEsp.setMinimumSize(new Dimension(150, 96));
 
         int row = 0;
         agregarFilaForm(pnlForm, gbc, row++, "ID:", txtId);
@@ -130,18 +131,23 @@ public class FrmMecanicos extends JFrame {
         agregarFilaForm(pnlForm, gbc, row++, "Nivel Certificación:", cmbCertificacion);
         agregarFilaForm(pnlForm, gbc, row++, "Tarifa Mano de Obra (Lps/Hr):", spnTarifa);
 
-        JPanel pnlChecks = new JPanel(new GridLayout(1, 2));
+        JPanel pnlChecks = new JPanel(new GridLayout(2, 1));
         pnlChecks.add(chkDisponible);
         pnlChecks.add(chkActivo);
         agregarFilaForm(pnlForm, gbc, row++, "Estado:", pnlChecks);
 
         agregarFilaForm(pnlForm, gbc, row++, "Especialidades (Ctrl+Clic):", scrollEsp);
 
-        JPanel pnlBotones = new JPanel(new FlowLayout(FlowLayout.CENTER, 5, 5));
+        JPanel pnlBotones = new JPanel(new GridLayout(0, 3, 6, 6));
         JButton btnNuevo = EstiloUI.botonSecundario("Nuevo");
         JButton btnGuardar = EstiloUI.botonPrimario("Guardar");
         JButton btnToggleDisp = EstiloUI.botonSecundario("Disp / Ocup");
         JButton btnDesactivar = EstiloUI.botonPeligro("Desactivar");
+        JButton btnEliminar = EstiloUI.botonPeligro("Eliminar");
+        btnEliminar.addActionListener(e -> Eliminador.eliminar(this, modelo.enums.RegistroEliminable.MECANICO, txtId.getText(), () -> {
+            limpiarFormulario();
+            cargarMecanicos("");
+        }));
 
         btnNuevo.addActionListener(e -> limpiarFormulario());
         btnGuardar.addActionListener(e -> guardarMecanico());
@@ -152,13 +158,14 @@ public class FrmMecanicos extends JFrame {
         pnlBotones.add(btnGuardar);
         pnlBotones.add(btnToggleDisp);
         pnlBotones.add(btnDesactivar);
+        pnlBotones.add(btnEliminar);
 
         gbc.gridx = 0;
         gbc.gridy = row;
         gbc.gridwidth = 2;
         pnlForm.add(pnlBotones, gbc);
 
-        add(pnlForm, BorderLayout.WEST);
+        add(EstiloUI.panelLateral(pnlForm, 470), BorderLayout.WEST);
 
         JPanel pnlCentral = new JPanel(new BorderLayout(8, 8));
         pnlCentral.setBorder(BorderFactory.createEmptyBorder(10, 5, 15, 15));
