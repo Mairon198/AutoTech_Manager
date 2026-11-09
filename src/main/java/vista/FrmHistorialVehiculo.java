@@ -41,7 +41,7 @@ public class FrmHistorialVehiculo extends JFrame {
         pnlHeader.setBackground(EstiloUI.AZUL_OSCURO);
         pnlHeader.setBorder(BorderFactory.createEmptyBorder(15, 20, 15, 20));
 
-        JLabel lblTitulo = new JLabel("EXPEDIENTE HISTÓRICO POR VEHÍCULO");
+        JLabel lblTitulo = new JLabel("MÓDULO 8: EXPEDIENTE HISTÓRICO POR VEHÍCULO");
         lblTitulo.setFont(EstiloUI.fuente(Font.BOLD, 18f));
         lblTitulo.setForeground(Color.WHITE);
         pnlHeader.add(lblTitulo, BorderLayout.WEST);

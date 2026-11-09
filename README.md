@@ -39,6 +39,6 @@ src/main/java
 
 ## Integrantes
 
-- 
-- 
--
+- Mairon Omar Licona Duarte
+- Cristhian Yahir Mayorga Martinez
+- Cristopher André Romero Martinez

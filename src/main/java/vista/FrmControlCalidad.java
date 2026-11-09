@@ -55,7 +55,7 @@ public class FrmControlCalidad extends FrmBaseOrden {
     private boolean procesando;
 
     public FrmControlCalidad() {
-        super("Control de calidad", "CONTROL DE CALIDAD",
+        super("Control de calidad", "MÓDULO 3: CONTROL DE CALIDAD",
                 "Verificación final (obligatoria en niveles 3 a 5) y cierre de la orden con garantía y factura", true);
 
         JPanel lista = new JPanel(new GridLayout(0, 1, 0, 2));

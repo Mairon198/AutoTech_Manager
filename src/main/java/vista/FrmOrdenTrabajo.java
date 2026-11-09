@@ -35,7 +35,7 @@ import servicio.MecanicoService;
 import servicio.VehiculoService;
 
 /**
- * Módulo 5: órdenes de trabajo. Ingreso del vehículo, servicios solicitados, repuestos
+ * Módulo 3: órdenes de trabajo. Ingreso del vehículo, servicios solicitados, repuestos
  * consumidos, flujo de estados y cierre de la orden procesado con un hilo (SwingWorker).
  */
 public class FrmOrdenTrabajo extends FrmBaseOrden {
@@ -72,7 +72,7 @@ public class FrmOrdenTrabajo extends FrmBaseOrden {
     private final JComboBox<EstadoOrden> cmbSiguiente = new JComboBox<>();
 
     public FrmOrdenTrabajo() {
-        super("Órdenes de trabajo", "MÓDULO 5: ÓRDENES DE TRABAJO",
+        super("Órdenes de trabajo", "MÓDULO 3: ÓRDENES DE TRABAJO",
                 "Ingreso del vehículo, servicios solicitados, repuestos utilizados y flujo de estados", true);
         JTabbedPane tabs = new JTabbedPane();
         tabs.setFont(EstiloUI.fuente(Font.BOLD, 13f));

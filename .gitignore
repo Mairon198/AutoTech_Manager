@@ -26,3 +26,7 @@ config.properties
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# El informe se entrega por aparte
+docs/*.docx
+docs/~$*

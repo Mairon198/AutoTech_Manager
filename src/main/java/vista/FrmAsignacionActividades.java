@@ -35,7 +35,7 @@ public class FrmAsignacionActividades extends FrmBaseOrden {
     private final JTable tblActividades = tabla();
 
     public FrmAsignacionActividades() {
-        super("Asignación y actividades", "ASIGNACIÓN DE MECÁNICOS Y ACTIVIDADES",
+        super("Asignación y actividades", "MÓDULO 4: ASIGNACIÓN DE MECÁNICOS Y ACTIVIDADES",
                 "Mecánicos por orden, responsable, actividades y horas trabajadas", true);
 
         JButton asignar = EstiloUI.botonPrimario("Asignar a la orden");
