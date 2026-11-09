@@ -1,0 +1,5 @@
+# Copie este archivo con el nombre config.properties (en la misma carpeta)
+# y escriba los datos reales de conexión. config.properties NO se sube a GitHub.
+db.url=jdbc:sqlserver://SERVIDOR.database.windows.net:1433;databaseName=AutoTechDB;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;
+db.user=USUARIO
+db.password=CONTRASEÑA

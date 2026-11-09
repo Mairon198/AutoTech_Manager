@@ -1,0 +1,38 @@
+AUTO TECH MANAGER - INTEGRACIÓN JDBC (VERSIÓN DE PRUEBA)
+
+Se mantuvieron los 6 formularios .java/.form y se agrego GuardarFormularios.java.
+
+PREPARACIÓN
+1. Ejecutar database/AutoTechDB.sql en SQL Server.
+2. Copiar config.properties.example a config.properties en la RAÍZ del proyecto.
+3. Configurar db.url, db.user, db.password (no incluir contraseñas en GitHub).
+4. Abrir este proyecto Maven en NetBeans y compilar.
+5. Verificar que el formulario abra en pestaña Design y que SQL Server responda.
+
+FUNCIONALIDAD
+- OrdenTrabajo: crea la orden; el numero de orden es calculado por la BD y NO se ingresa manualmente.
+- DiagnosticoPresupuesto: guarda SOLAMENTE diagnóstico. El presupuesto requiere detalles
+  de servicios/repuestos, no incluidos en el formulario actual. NO se afirma que se facture.
+- AsignacionActividades: asigna mecánico (no principal) y guarda actividad.
+- ControlCalidad: crea control de calidad.
+- CambioMotor: utiliza el procedimiento SQL sp_RegistrarCambioMotor (validaciones y transacción).
+- PagosFacturacion: al presionar Guardar, elegir Registrar pago o Generar factura.
+  Usa procedimientos de SQL, con saldo y validaciones de la base.
+
+VALORES IMPORTANTES
+- Usar IDs de cliente, vehículo, mecánico, orden y motor existentes.
+- Para valores booleanos escribir Sí / No.
+- Fechas: yyyy-MM-dd HH:mm:ss o yyyy-MM-dd.
+- Estados de actividad: PENDIENTE, EN_PROCESO, COMPLETADA.
+- Método de pago: EFECTIVO, TARJETA, TRANSFERENCIA.
+- Destino de motor: DEVUELTO_CLIENTE, RECONSTRUCCION, CHATARRA, ALMACEN.
+- El campo número de orden en FrmOrdenTrabajo se ignora en el alta (es computado).
+- Campos de resumen como saldo, total y número de factura de la pantalla de pagos
+  no se toman como fuente de verdad; los calcula SQL Server.
+
+LIMITACIONES Y SEGURIDAD
+- NO se ha probado contra una instancia real de SQL Server en este entorno.
+- No se incluye conexión real, contraseñas ni credenciales.
+- Falta el guardado de líneas del presupuesto. Tampoco se agregan opciones editar/eliminar.
+- Verifique la apertura en Design: el archivo .form puede requerir ajustes específicos en NetBeans.
+- NO pulse Allow Editing si NetBeans advierte pérdida de datos del formulario.

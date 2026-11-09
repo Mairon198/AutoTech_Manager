@@ -39,3 +39,8 @@ src/main/java
 - 
 - 
 - 
+
+
+## Entrega del Integrante 3
+
+Consulte `docs/INTEGRANTE_3_GUIA.md` para el alcance, reglas implementadas, apertura en NetBeans y las tareas de integración pendientes.
