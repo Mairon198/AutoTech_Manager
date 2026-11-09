@@ -147,12 +147,19 @@ public class FrmControlCalidad extends FrmBaseOrden {
         barra.setValue(0);
         int id = o.getOrdenId();
         new ProcesadorOrdenWorker(id, barra, lblProceso, resultado -> {
-            procesando = false;
             boolean error = resultado.startsWith("ERROR");
+            // Se recarga mientras "procesando" sigue activo, para que la recarga no borre el resultado
+            cargarOrdenes(id);
+            procesando = false;
             txtResultado.setText(resultado);
             txtResultado.setForeground(error ? EstiloUI.ERROR : EstiloUI.TEXTO);
-            cargarOrdenes(id);
+            txtResultado.setCaretPosition(0);
             btnIrPagos.setVisible(!error);
+            OrdenResumen actual = orden();
+            btnCerrar.setEnabled(actual != null && actual.getEstado() == EstadoOrden.EN_CONTROL_CALIDAD);
+            if (error) {
+                avisar("No se pudo cerrar la orden:\n" + resultado.substring("ERROR: ".length()));
+            }
         }).execute();
     }
 

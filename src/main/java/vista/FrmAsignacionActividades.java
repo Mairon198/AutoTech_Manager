@@ -64,19 +64,28 @@ public class FrmAsignacionActividades extends FrmBaseOrden {
                 ordenSeleccionada(orden());
             }
         });
+        JButton quitarAct = EstiloUI.botonPeligro("Quitar actividad");
+        quitarAct.addActionListener(e -> quitarActividad());
         JButton iniciar = EstiloUI.botonSecundario("Iniciar seleccionada");
         iniciar.addActionListener(e -> conActividad(id -> ordenes.iniciarActividad(id)));
         JButton completar = EstiloUI.botonSecundario("Completar seleccionada");
-        completar.addActionListener(e -> conActividad(id -> ordenes.completarActividad(id,
-                BigDecimal.valueOf((Double) spnHoras.getValue()), txtObs.getText())));
+        completar.addActionListener(e -> conActividad(id -> {
+            try {
+                spnHoras.commitEdit();
+            } catch (java.text.ParseException ex) {
+                throw new excepciones.ValidacionException("Escriba las horas con números, por ejemplo 1 o 1.5.");
+            }
+            ordenes.completarActividad(id, BigDecimal.valueOf(((Number) spnHoras.getValue()).doubleValue()),
+                    txtObs.getText());
+        }));
         Formulario actividad = new Formulario("Actividades de trabajo")
                 .campo("Mecánico", cmbMecanicoAct)
                 .campo("Actividad", txtActividad)
-                .ancho(botones(agregar))
+                .ancho(botones(agregar, quitarAct))
                 .campo("Horas trabajadas", spnHoras)
                 .campo("Observación", txtObs)
                 .ancho(botones(iniciar, completar))
-                .ancho(nota("La orden no puede finalizar mientras haya actividades sin completar."))
+                .ancho(nota("Las horas se guardan al presionar \"Completar seleccionada\"."))
                 .relleno();
 
         JPanel izq = new JPanel(new GridLayout(2, 1, 0, 8));
@@ -117,6 +126,22 @@ public class FrmAsignacionActividades extends FrmBaseOrden {
         }
         if (ejecutar(() -> ordenes.quitarMecanico(orden(), id, nombre))) {
             recargar();
+        }
+    }
+
+    private void quitarActividad() {
+        Integer id = idSeleccionado(tblActividades);
+        if (id == null) {
+            avisar("Seleccione en la tabla de actividades la que desea quitar.");
+            return;
+        }
+        int fila = tblActividades.convertRowIndexToModel(tblActividades.getSelectedRow());
+        String descripcion = String.valueOf(tblActividades.getModel().getValueAt(fila, 1));
+        if (!confirmar("¿Quitar la actividad \"" + descripcion + "\" de la orden " + orden().getNumero() + "?")) {
+            return;
+        }
+        if (ejecutar(() -> ordenes.quitarActividad(orden(), id))) {
+            ordenSeleccionada(orden());
         }
     }
 
