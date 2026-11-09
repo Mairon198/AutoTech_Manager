@@ -120,13 +120,6 @@ public class FrmReportes extends JFrame {
         JPanel pnl = new JPanel(new BorderLayout(6, 6));
         pnl.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
-        JPanel pnlTop = new JPanel(new BorderLayout());
-        JLabel lblFuente = new JLabel("Fuente: vista SQL dbo.vw_" + nombreReporte);
-        lblFuente.setFont(EstiloUI.fuente(Font.PLAIN, 12f));
-        lblFuente.setForeground(EstiloUI.TEXTO_SUAVE);
-        pnlTop.add(lblFuente, BorderLayout.WEST);
-
-        pnl.add(pnlTop, BorderLayout.NORTH);
         pnl.add(new JScrollPane(tabla), BorderLayout.CENTER);
         return pnl;
     }
@@ -159,16 +152,40 @@ public class FrmReportes extends JFrame {
     }
 
     private void llenarTabla(JTable tabla, TablaResultado res) {
-        DefaultTableModel model = new DefaultTableModel(res.getColumnas().toArray(), 0) {
+        DefaultTableModel model = new DefaultTableModel(res.getColumnas().stream().map(FrmReportes::encabezado).toArray(), 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
             }
         };
         for (Object[] fila : res.getFilas()) {
-            model.addRow(fila);
+            Object[] legible = new Object[fila.length];
+            for (int i = 0; i < fila.length; i++) {
+                legible[i] = FrmBaseOrden.formatear(fila[i]);
+            }
+            model.addRow(legible);
         }
         tabla.setModel(model);
+    }
+
+    private static final java.util.Map<String, String> TILDES = java.util.Map.ofEntries(
+            java.util.Map.entry("NUMERO", "NÚMERO"), java.util.Map.entry("MECANICO", "MECÁNICO"),
+            java.util.Map.entry("VEHICULO", "VEHÍCULO"), java.util.Map.entry("CATEGORIA", "CATEGORÍA"),
+            java.util.Map.entry("MINIMO", "MÍNIMO"), java.util.Map.entry("TELEFONO", "TELÉFONO"),
+            java.util.Map.entry("EMISION", "EMISIÓN"), java.util.Map.entry("CODIGO", "CÓDIGO"),
+            java.util.Map.entry("DIAS", "DÍAS"), java.util.Map.entry("ULTIMO", "ÚLTIMO"),
+            java.util.Map.entry("DESCRIPCION", "DESCRIPCIÓN"), java.util.Map.entry("ESPECIALIDAD", "ESPECIALIDAD"));
+
+    /** Encabezado con tildes: "NUMERO ORDEN" pasa a "NÚMERO ORDEN". */
+    private static String encabezado(Object columna) {
+        StringBuilder sb = new StringBuilder();
+        for (String p : String.valueOf(columna).split(" ")) {
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            sb.append(TILDES.getOrDefault(p, p));
+        }
+        return sb.toString();
     }
 
     public static void main(String[] args) {

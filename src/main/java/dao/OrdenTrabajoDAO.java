@@ -60,6 +60,9 @@ public interface OrdenTrabajoDAO {
 
     int agregarActividad(int ordenId, int mecanicoId, String descripcion) throws PersistenciaException;
 
+    /** Quita una actividad que todavía no está completada. Devuelve las filas eliminadas. */
+    int quitarActividad(int ordenId, int actividadId) throws PersistenciaException;
+
     void actualizarActividad(int actividadId, EstadoActividad estado, BigDecimal horas, String observaciones)
             throws PersistenciaException;
 

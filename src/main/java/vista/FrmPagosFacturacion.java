@@ -31,6 +31,12 @@ public class FrmPagosFacturacion extends FrmBaseOrden {
     private final JLabel lblTotal = cifra();
     private final JLabel lblPagado = cifra();
     private final JLabel lblSaldo = cifra();
+    private final JLabel lblGravado = monto();
+    private final JLabel lblDescuento = monto();
+    private final JLabel lblSubtotal = monto();
+    private final JLabel lblIsvTitulo = new JLabel("ISV");
+    private final JLabel lblIsv = monto();
+    private final JLabel lblTotalFactura = monto();
     private final JSpinner spnMonto = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 10_000_000.0, 100.0));
     private final JComboBox<MetodoPago> cmbMetodo = new JComboBox<>(MetodoPago.values());
     private final JTextField txtReferencia = EstiloUI.campoCompacto(new JTextField());
@@ -67,6 +73,7 @@ public class FrmPagosFacturacion extends FrmBaseOrden {
         entregar.addActionListener(e -> entregar());
 
         Formulario f = new Formulario("Registrar pago")
+                .ancho(desglose())
                 .ancho(cifras)
                 .campo("Monto (L)", spnMonto)
                 .ancho(botones(saldo))
@@ -74,7 +81,6 @@ public class FrmPagosFacturacion extends FrmBaseOrden {
                 .campo("Referencia", txtReferencia)
                 .ancho(botones(pagar))
                 .ancho(nota("Se permiten pagos parciales; nunca se acepta un monto mayor que el saldo."))
-                .ancho(new JLabel(" "))
                 .ancho(botones(facturar, entregar))
                 .ancho(nota("La factura se emite al cerrar la orden en Control de calidad; "
                         + "este botón sirve si quedó pendiente. Al entregar, la orden pasa a <b>Entregada</b>."))
@@ -99,6 +105,39 @@ public class FrmPagosFacturacion extends FrmBaseOrden {
         l.setFont(EstiloUI.fuente(Font.BOLD, 15f));
         l.setForeground(EstiloUI.AZUL_OSCURO);
         return l;
+    }
+
+    private static JLabel monto() {
+        JLabel l = new JLabel("L 0.00", javax.swing.SwingConstants.RIGHT);
+        l.setFont(EstiloUI.fuente(Font.PLAIN, 13f));
+        l.setForeground(EstiloUI.TEXTO);
+        return l;
+    }
+
+    /** Detalle de la factura: importe gravado, descuento, subtotal, ISV y total. */
+    private JPanel desglose() {
+        JPanel p = new JPanel(new GridLayout(5, 2, 8, 2));
+        p.setBackground(java.awt.Color.WHITE);
+        p.setBorder(javax.swing.BorderFactory.createCompoundBorder(
+                javax.swing.BorderFactory.createLineBorder(EstiloUI.BORDE),
+                javax.swing.BorderFactory.createEmptyBorder(6, 10, 6, 10)));
+        fila(p, new JLabel("Importe gravado"), lblGravado, false);
+        fila(p, new JLabel("Descuento"), lblDescuento, false);
+        fila(p, new JLabel("Subtotal"), lblSubtotal, false);
+        fila(p, lblIsvTitulo, lblIsv, false);
+        fila(p, new JLabel("Total de la factura"), lblTotalFactura, true);
+        return p;
+    }
+
+    private static void fila(JPanel p, JLabel titulo, JLabel valor, boolean resaltar) {
+        titulo.setFont(EstiloUI.fuente(resaltar ? Font.BOLD : Font.PLAIN, 13f));
+        titulo.setForeground(resaltar ? EstiloUI.AZUL_OSCURO : EstiloUI.TEXTO);
+        if (resaltar) {
+            valor.setFont(EstiloUI.fuente(Font.BOLD, 14f));
+            valor.setForeground(EstiloUI.AZUL_OSCURO);
+        }
+        p.add(titulo);
+        p.add(valor);
     }
 
     private static JPanel tarjeta(String titulo, JLabel valor) {
@@ -147,6 +186,18 @@ public class FrmPagosFacturacion extends FrmBaseOrden {
             limpiar(tblPagos);
             return;
         }
+        // Importe gravado = mano de obra + repuestos; Subtotal = gravado - descuento; Total = subtotal + ISV
+        BigDecimal gravado = o.getTotalManoObra().add(o.getTotalRepuestos());
+        BigDecimal subtotal = gravado.subtract(o.getDescuento());
+        lblGravado.setText("L " + dinero(gravado));
+        lblDescuento.setText((o.getDescuento().signum() > 0 ? "- L " : "L ") + dinero(o.getDescuento()));
+        lblSubtotal.setText("L " + dinero(subtotal));
+        lblIsvTitulo.setText(subtotal.signum() > 0
+                ? "ISV (" + o.getImpuesto().multiply(BigDecimal.valueOf(100))
+                        .divide(subtotal, 0, java.math.RoundingMode.HALF_UP) + " %)"
+                : "ISV");
+        lblIsv.setText("L " + dinero(o.getImpuesto()));
+        lblTotalFactura.setText("L " + dinero(o.getTotal()));
         lblTotal.setText("L " + dinero(o.getTotal()));
         lblPagado.setText("L " + dinero(o.getTotalPagado()));
         lblSaldo.setText("L " + dinero(o.getSaldo()));

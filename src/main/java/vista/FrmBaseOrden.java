@@ -324,7 +324,8 @@ public abstract class FrmBaseOrden extends JFrame {
         return Character.toUpperCase(t.charAt(0)) + t.substring(1);
     }
 
-    private static Object formatear(Object v) {
+    /** Da formato legible a un valor de la base: Sí/No, estados, fechas y montos. */
+    static Object formatear(Object v) {
         if (v instanceof String s) {
             return legible(s);
         }

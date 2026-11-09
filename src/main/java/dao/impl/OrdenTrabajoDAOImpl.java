@@ -224,6 +224,12 @@ public class OrdenTrabajoDAOImpl extends TallerDAOBase implements OrdenTrabajoDA
     }
 
     @Override
+    public int quitarActividad(int ordenId, int actividadId) throws PersistenciaException {
+        return ejecutarUpdate("DELETE FROM dbo.ActividadesTrabajo WHERE actividad_id = ? AND orden_id = ? AND estado <> 'COMPLETADA'",
+                actividadId, ordenId);
+    }
+
+    @Override
     public void actualizarActividad(int actividadId, EstadoActividad estado, BigDecimal horas, String observaciones)
             throws PersistenciaException {
         String sql = "UPDATE dbo.ActividadesTrabajo SET estado = ?, "

@@ -180,6 +180,21 @@ public class OrdenTrabajoService {
         }
     }
 
+    /**
+     * Quita una actividad agregada por error. Las actividades completadas no se quitan,
+     * porque ya forman parte del trabajo realizado y de las horas del mecánico.
+     */
+    public void quitarActividad(OrdenResumen orden, int actividadId) throws AutoTechException {
+        validarAbierta(orden);
+        try {
+            if (ordenDAO.quitarActividad(orden.getOrdenId(), actividadId) == 0) {
+                throw new ReglaNegocioException("Solo se pueden quitar actividades que todavía no estén completadas.");
+            }
+        } catch (PersistenciaException e) {
+            throw ErroresNegocio.traducir(e);
+        }
+    }
+
     public void iniciarActividad(int actividadId) throws AutoTechException {
         try {
             ordenDAO.actualizarActividad(actividadId, EstadoActividad.EN_PROCESO, null, null);
