@@ -108,7 +108,8 @@ public class FrmMenuPrincipal extends JFrame {
         seccion("Caja y consultas", new Color(0x37474F),
                 new Modulo(null, "Pagos y facturación", "FrmPagosFacturacion", "Abonos, saldo, factura y entrega", "PF", KeyEvent.VK_8),
                 new Modulo(null, "Historial de vehículo", "FrmHistorialVehiculo", "Servicios, mecánicos, repuestos y costos", "HV", KeyEvent.VK_9),
-                new Modulo(null, "Reportes", "FrmReportes", "Vistas SQL y reportes administrativos", "RP", 0));
+                new Modulo(null, "Reportes", "FrmReportes", "Vistas SQL y reportes administrativos", "RP", 0),
+                new Modulo(null, "Imprimir reportes", "FrmImpresionReportes", "Reportes de las tablas con JasperReports", "IM", 0));
     }
 
     private static void seccion(String nombre, Color color, Modulo... modulos) {

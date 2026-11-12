@@ -10,11 +10,24 @@
         <maven.compiler.release>21</maven.compiler.release>
         <exec.mainClass>com.mycompany.autotech_manager.AutoTech_Manager</exec.mainClass>
     </properties>
+    <!-- openpdf (lo usa JasperReports para exportar a PDF) se descarga del repositorio de Jaspersoft -->
+    <repositories>
+        <repository>
+            <id>jaspersoft-third-party</id>
+            <url>https://jaspersoft.jfrog.io/jaspersoft/third-party-ce-artifacts/</url>
+        </repository>
+    </repositories>
     <dependencies>
         <dependency>
             <groupId>com.microsoft.sqlserver</groupId>
             <artifactId>mssql-jdbc</artifactId>
             <version>12.6.1.jre11</version>
+        </dependency>
+        <!-- Reportes con JasperReports -->
+        <dependency>
+            <groupId>net.sf.jasperreports</groupId>
+            <artifactId>jasperreports</artifactId>
+            <version>6.20.6</version>
         </dependency>
     </dependencies>
 </project>
